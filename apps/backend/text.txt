@@ -1,0 +1,1 @@
+This will be the backend folder. We can change it later as we like.
