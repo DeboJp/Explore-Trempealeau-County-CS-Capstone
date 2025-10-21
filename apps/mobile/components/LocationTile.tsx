@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, Image, ImageBackground, Button} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, Image, ImageBackground, Button, Pressable} from 'react-native';
 import { Double, Int32 } from 'react-native/Libraries/Types/CodegenTypes';
 import TileTag from './TileTag';
 import {BackgroundImage} from '../assets/ts/images'
@@ -68,9 +68,9 @@ export default function LocationTile({ title, category, subtitle, description, d
                 <Text style={{color: '#494A50', fontSize: 12}}>{description}</Text>
                 <View style={{...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8}}>
                     <TouchableOpacity>
-                        <View style={styles.detailsButton}>
-                            <Text>Details</Text>
-                        </View>
+                        <Pressable style={styles.detailsButton} onPress={onPress}>
+                          <Text>Details</Text>
+                        </Pressable>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -83,7 +83,10 @@ export default function LocationTile({ title, category, subtitle, description, d
                     <Text style={{fontSize: 16, fontWeight: '300', marginBottom: 4}}>{subtitle}</Text>
                     <Text style={{fontSize: 14, fontWeight: '400', marginBottom: 4}}>{description}</Text>
                     <View style={{flexDirection: 'row', paddingHorizontal: 16, justifyContent: 'space-between', width: '100%', marginTop: 8}}>
-                      <Button title="View Details" onPress={() => {}} />
+                      <Button title="View Details" onPress={() => {
+                        onPress();
+                        toggleModal();
+                      }} />
                       <Button title="Open Map" onPress={() => {}} />
                     </View>
               </View>

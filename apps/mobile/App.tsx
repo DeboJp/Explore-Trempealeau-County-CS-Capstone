@@ -49,7 +49,6 @@ function AppTabs() {
       >
         <SocialTab.Screen name="Explore" component={ExploreScreen} />
         <SocialTab.Screen name="Saved" component={SavedScreen} />
-        <SocialTab.Screen name="Detail" component={DetailScreen} />
       </SocialTab.Navigator>
   );
 }
@@ -62,6 +61,7 @@ export default function App() {
           headerTitle: getHeaderTitle(route), headerShown: false,
         })}/>
         {/*Pages not included in tabs go here (Detail, Filter, etc.) */}
+        <Stack.Screen name="Detail" component={DetailScreen} options={{headerTitleStyle: { fontSize: 28, fontWeight: '500', paddingBottom: 10 }}}/>
       </Stack.Navigator>
     </NavigationContainer>
   );

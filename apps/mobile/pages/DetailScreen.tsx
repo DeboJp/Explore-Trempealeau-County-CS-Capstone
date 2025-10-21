@@ -111,13 +111,13 @@ const TEMPdata = [
     },
 ];
 
-export default function DetailScreen({ locationId }: DetailScreenProps) {
-    const location = TEMPdata.find(loc => loc.id === 2);
+export default function DetailScreen({route}: {route: any}) {
+    const { locationId } = route.params;
+    const location = TEMPdata.find(loc => loc.id === locationId);
     // TODO: Fetch location data based on locationId prop
     // TODO: Get image from assets based on location data
     // TODO: Get nearby locations based on lat/lon of location data), with parent (if applicable)
     // TODO: Integrate with map to redirect with lat/lon, estimate distance to
-    console.log(location);
     const backgroundImage = BackgroundImage.GetImage(
             location?.image || 'perrot.png',
           );
