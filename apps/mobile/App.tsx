@@ -1,21 +1,32 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Image} from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import ExploreScreen from './pages/ExploreScreen'
 import SavedScreen from './pages/SavedScreen'
 import ProfileScreen from './pages/ProfileScreen'
 import DetailScreen from './pages/DetailScreen';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+const Stack = createNativeStackNavigator();
 const SocialTab = createBottomTabNavigator();
 
-export default function App() {
+function getHeaderTitle(route: any) {
+  // If the focused route is not found, we need to assume it's the initial screen
+  // This can happen during if there hasn't been any navigation inside the screen
+  // In our case, it's "Feed" as that's the first screen inside the navigator
+  const routeName = getFocusedRouteNameFromRoute(route) ?? 'Feed';
+
+  return routeName;
+}
+
+function AppTabs() {
   return (
-    <NavigationContainer>
-      <SocialTab.Navigator
+    <SocialTab.Navigator
         initialRouteName="Explore"
         screenOptions={({ route }) => ({
+          headerTitleStyle: { fontSize: 28, fontWeight: '500', paddingBottom: 10 },
           tabBarStyle: { position: 'absolute', borderRadius: 40, margin: 10, height: 90},
           tabBarIcon: ({ focused }) => {
             let iconUrl;
@@ -40,6 +51,18 @@ export default function App() {
         <SocialTab.Screen name="Saved" component={SavedScreen} />
         <SocialTab.Screen name="Detail" component={DetailScreen} />
       </SocialTab.Navigator>
+  );
+}
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen name="Tabs" component={AppTabs} options={({ route }) => ({
+          headerTitle: getHeaderTitle(route), headerShown: false,
+        })}/>
+        {/*Pages not included in tabs go here (Detail, Filter, etc.) */}
+      </Stack.Navigator>
     </NavigationContainer>
   );
 }// export default function App() {
