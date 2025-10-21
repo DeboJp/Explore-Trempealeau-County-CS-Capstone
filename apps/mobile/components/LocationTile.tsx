@@ -1,8 +1,9 @@
-import React from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, Image, ImageBackground} from 'react-native';
+import { useState } from 'react';
+import {View, Text, TouchableOpacity, StyleSheet, Image, ImageBackground, Button} from 'react-native';
 import { Double, Int32 } from 'react-native/Libraries/Types/CodegenTypes';
 import TileTag from './TileTag';
 import {BackgroundImage} from '../assets/ts/images'
+import BottomUpModal from './BottomUpModal';
 
 interface LocationTileProps {
   title: string;
@@ -29,11 +30,26 @@ const tagColor = (difficulty: null | 'Easy' | 'Moderate' | 'Hard') => {
 }
 
 export default function LocationTile({ title, category, subtitle, description, difficulty, distance, backgroundImg, onPress }: LocationTileProps) {
-    const backgroundImage = BackgroundImage.GetImage(
+  const [openModal, setOpenModal] = useState<boolean>(false);
+
+  const onOpen = () => {
+      setOpenModal(true);
+  };
+
+  const onDismiss = () => {
+    setOpenModal(false);
+  };
+
+  const toggleModal = () => {
+      setOpenModal(!openModal);
+  };
+
+  const backgroundImage = BackgroundImage.GetImage(
         backgroundImg,
       );
     return (
-    <TouchableOpacity onPress={onPress}>
+      <View>
+      <TouchableOpacity onPress={onOpen}>
         <View style={{...styles.container}}>
             <ImageBackground source={backgroundImage} style={{...StyleSheet.absoluteFillObject, width: '100%'}} resizeMode="cover">
                 <TileTag text={category} backgroundColor={'#266AB1'} style={{...styles.categoryTag}} />
@@ -58,11 +74,22 @@ export default function LocationTile({ title, category, subtitle, description, d
                     </TouchableOpacity>
                 </View>
             </View>
-
         </View>
-        
-        
-    </TouchableOpacity>
+      </TouchableOpacity>
+      {openModal && (
+        <BottomUpModal visible={openModal} onDismiss={onDismiss}>
+              <View style={{paddingVertical: 16, paddingHorizontal: 8}}>
+                    <Text style={{fontSize: 20, fontWeight: '600', marginBottom: 4}}>{title}</Text>
+                    <Text style={{fontSize: 16, fontWeight: '300', marginBottom: 4}}>{subtitle}</Text>
+                    <Text style={{fontSize: 14, fontWeight: '400', marginBottom: 4}}>{description}</Text>
+                    <View style={{flexDirection: 'row', paddingHorizontal: 16, justifyContent: 'space-between', width: '100%', marginTop: 8}}>
+                      <Button title="View Details" onPress={() => {}} />
+                      <Button title="Open Map" onPress={() => {}} />
+                    </View>
+              </View>
+        </BottomUpModal>
+      )}
+    </View>
   );
 }
 

@@ -5,7 +5,7 @@ import LocationTile from '../components/LocationTile';
 import SearchBar from '../components/SearchBar';
 
 function ExploreScreen() {
-  return <View style={{padding: 16}}> 
+  return <ScrollView contentContainerStyle={{padding: 16}}> 
       <SearchBar 
         placeholder="Search for trails, parks, and more"
         value={""}
@@ -26,7 +26,7 @@ function ExploreScreen() {
         <LocationTile title="Long Lake Boat Launch" category="Water" subtitle="Cascade, WI" backgroundImg={"longlake.png"} onPress={() => {}} />
       </ScrollView>
       
-  </View>
+  </ScrollView>
 }
 
 export default ExploreScreen;

@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import ExploreScreen from './pages/ExploreScreen'
 import SavedScreen from './pages/SavedScreen'
 import ProfileScreen from './pages/ProfileScreen'
+import DetailScreen from './pages/DetailScreen';
 
 const SocialTab = createBottomTabNavigator();
 
@@ -37,7 +38,7 @@ export default function App() {
       >
         <SocialTab.Screen name="Explore" component={ExploreScreen} />
         <SocialTab.Screen name="Saved" component={SavedScreen} />
-        <SocialTab.Screen name="Profile" component={ProfileScreen} />
+        <SocialTab.Screen name="Detail" component={DetailScreen} />
       </SocialTab.Navigator>
     </NavigationContainer>
   );
