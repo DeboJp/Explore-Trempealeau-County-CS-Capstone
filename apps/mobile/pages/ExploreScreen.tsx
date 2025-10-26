@@ -3,6 +3,7 @@ import {View,ScrollView, Text} from 'react-native'
 import CategoryTile from '../components/CategoryTile';
 import LocationTile from '../components/LocationTile';
 import SearchBar from '../components/SearchBar';
+import locations from '../assets/ts/locations';
 import { useNavigation } from '@react-navigation/native';
 
 export default function ExploreScreen() {
@@ -20,10 +21,11 @@ export default function ExploreScreen() {
         <CategoryTile title="Biking" onPress={() => {}} />
       </ScrollView>
 
-      <Text style={{textAlign: "left", fontSize: 24, marginBottom: 16}}>Featured Trails</Text>
+      <Text style={{textAlign: "left", fontSize: 24, marginBottom: 16}}>Featured</Text>
       <ScrollView contentContainerStyle={{alignItems: 'center'}} horizontal={true}>
-        <LocationTile title="Perrot State Park" category="Parks" subtitle="Trempealeau, WI" description="Description. Lorem ipsum dolor sit amet consectetur adipiscing elit, sed do" backgroundImg={"perrot.png"} onPress={() => {navigation.navigate('Detail', { locationId: 1 });}} />
-        <LocationTile title="Perrot Ridge Trail" category="Hike" subtitle="Perrot State Park" description="Description. Lorem ipsum dolor sit amet consectetur adipiscing elit, sed do" backgroundImg={"perrotridge.png"} difficulty="Moderate" distance={3.5} onPress={() => {navigation.navigate('Detail', { locationId: 2 })}} />
+        {locations.filter(loc => loc.parent_location_id === null && (loc.type != "Lodging" && loc.type !== "Business")).slice(0, 5).map((loc) => (
+          <LocationTile key={loc.id} locationId={loc.id} title={loc.name} category={loc.type} subtitle={loc.city} description={loc.description} backgroundImg={loc.image} onPress={() => {navigation.navigate('Detail', { locationId: loc.id })}} />
+        ))}
       </ScrollView>
       
   </ScrollView>

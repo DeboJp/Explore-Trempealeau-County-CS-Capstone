@@ -4,8 +4,10 @@ import { Double, Int32 } from 'react-native/Libraries/Types/CodegenTypes';
 import TileTag from './TileTag';
 import {BackgroundImage} from '../assets/ts/images'
 import BottomUpModal from './BottomUpModal';
+import { useNavigation } from '@react-navigation/native';
 
 interface LocationTileProps {
+  locationId?: Int32;
   title: string;
   category: string;
   subtitle?: string;
@@ -29,7 +31,7 @@ const tagColor = (difficulty: null | 'Easy' | 'Moderate' | 'Hard') => {
   }
 }
 
-export default function LocationTile({ title, category, subtitle, description, difficulty, distance, backgroundImg, onPress }: LocationTileProps) {
+export default function LocationTile({ locationId,title, category, subtitle, description, difficulty, distance, backgroundImg, onPress }: LocationTileProps) {
   const [openModal, setOpenModal] = useState<boolean>(false);
 
   const onOpen = () => {
@@ -43,7 +45,7 @@ export default function LocationTile({ title, category, subtitle, description, d
   const toggleModal = () => {
       setOpenModal(!openModal);
   };
-
+  const navigation = useNavigation();
   const backgroundImage = BackgroundImage.GetImage(
         backgroundImg,
       );
@@ -61,14 +63,19 @@ export default function LocationTile({ title, category, subtitle, description, d
             
             <View style={{...styles.textContainer}}>
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4}}>
-                    <Text style={{color: '#1F2024', fontSize: 14, fontWeight: 'bold', width: '66.7%'}}>{title}</Text>
+                    <Text style={{color: '#1F2024', fontSize: 14, fontWeight: 'bold', width: '80%'}}>{title}</Text>
                     {distance && <Text style={{color: '#0D83FD', fontSize: 12, fontWeight: 400, alignSelf: 'flex-start'}}>{distance} mi</Text>}
                 </View>
                 <Text style={{color: '#71727A', fontSize: 12, marginBottom: 4}}>{subtitle}</Text>
                 <Text style={{color: '#494A50', fontSize: 12}}>{description}</Text>
                 <View style={{...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8}}>
                     <TouchableOpacity>
-                        <Pressable style={styles.detailsButton} onPress={onPress}>
+                        <Pressable style={({ pressed }) => [
+                          styles.detailsButton,
+                          {
+                            opacity: pressed ? 0.5 : 1, // Reduce opacity on press
+                          },
+                        ]} onPress={onPress}>
                           <Text>Details</Text>
                         </Pressable>
                     </TouchableOpacity>
@@ -77,15 +84,18 @@ export default function LocationTile({ title, category, subtitle, description, d
         </View>
       </TouchableOpacity>
       {openModal && (
-        <BottomUpModal visible={openModal} onDismiss={onDismiss}>
+        <BottomUpModal visible={openModal} onDismiss={onDismiss} onSwipeUp={() => {
+          navigation.navigate('Detail', { locationId: locationId });
+          toggleModal();
+          }}>
               <View style={{paddingVertical: 16, paddingHorizontal: 8}}>
                     <Text style={{fontSize: 20, fontWeight: '600', marginBottom: 4}}>{title}</Text>
                     <Text style={{fontSize: 16, fontWeight: '300', marginBottom: 4}}>{subtitle}</Text>
                     <Text style={{fontSize: 14, fontWeight: '400', marginBottom: 4}}>{description}</Text>
                     <View style={{flexDirection: 'row', paddingHorizontal: 16, justifyContent: 'space-between', width: '100%', marginTop: 8}}>
                       <Button title="View Details" onPress={() => {
-                        onPress();
                         toggleModal();
+                        onPress();
                       }} />
                       <Button title="Open Map" onPress={() => {}} />
                     </View>

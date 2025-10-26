@@ -12,10 +12,11 @@ import {
 
 interface BottomUpModalProps {
     onDismiss: () => void;
+    onSwipeUp: () => void;
     children: React.ReactNode;
     visible?: boolean;
 }
-export default ({onDismiss, children, visible}: BottomUpModalProps) => {
+export default ({onDismiss, onSwipeUp, children, visible}: BottomUpModalProps) => {
   const screenHeight = Dimensions.get('screen').height;
   const panY = useRef(new Animated.Value(screenHeight)).current;
 
@@ -50,13 +51,11 @@ export default ({onDismiss, children, visible}: BottomUpModalProps) => {
         useNativeDriver: false,
       }),
       onPanResponderRelease: (_, gs) => {
-        console.log(gs.dy, gs.vy);
         if (gs.dy > 0 && gs.vy > 0.05) {
           return handleDismiss();
         }
         else if (gs.dy < 0 && gs.vy < -0.4) {
-            console.log("UP");
-            return resetPositionAnim.start();
+            return onSwipeUp();
         }
         return resetPositionAnim.start();
       },

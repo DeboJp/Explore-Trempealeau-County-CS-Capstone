@@ -1,119 +1,18 @@
 import React from 'react'
-import {View,ScrollView, Text, Image, StyleSheet} from 'react-native'
+import {View,ScrollView, Text, Image, StyleSheet, Pressable} from 'react-native'
 import { BackgroundImage } from '../assets/ts/images';
+import LocationTile from '../components/LocationTile';
+import { useNavigation } from '@react-navigation/native';
+import locations from '../assets/ts/locations';
 
 interface DetailScreenProps {
     locationId: string;
 }
 
-const TEMPdata = [
-    { 
-        id: 1, 
-        name: 'Perrot State Park',
-        type: 'Park',
-        address: "",
-        city: 'Trempealeau',
-        zip: '54661',
-        lat: 44.0425,
-        lon: -91.4075, 
-        parent_location_id: null,
-        description: 'A beautiful park with hiking trails and scenic views.', 
-        image: 'perrot.png',
-    },
-    { 
-        id: 2, 
-        name: 'Perrot Ridge Trail',
-        type: 'Hike',
-        address: "",
-        city: 'Trempealeau',
-        zip: '54661',
-        lat: 44.0425,
-        lon: -91.4075, 
-        parent_location_id: 1,
-        description: 'A beautiful park with hiking trails and scenic views.', 
-        image: 'perrotridge.png',
-    },
-    { 
-        id: 3, 
-        name: "Brady's Bluff Natural Area",
-        type: 'Hike',
-        address: "",
-        city: 'Trempealeau',
-        zip: '54661',
-        lat: 44.0425,
-        lon: -91.4075, 
-        parent_location_id: 1,
-        description: 'A beautiful park with hiking trails and scenic views.', 
-        image: 'bradysbluff.png',
-    },
-    { 
-        id: 4, 
-        name: "Brady's Bluff Trail",
-        type: 'Hike',
-        address: "",
-        city: 'Trempealeau',
-        zip: '54661',
-        lat: 44.0425,
-        lon: -91.4075, 
-        parent_location_id: 3,
-        description: 'A beautiful park with hiking trails and scenic views.', 
-        image: 'bradysbluff.png',
-    },
-    { 
-        id: 5, 
-        name: "Riverview Trail",
-        type: 'Hike',
-        address: "",
-        city: 'Trempealeau',
-        zip: '54661',
-        lat: 44.0425,
-        lon: -91.4075, 
-        parent_location_id: 3,
-        description: 'A beautiful park with hiking trails and scenic views.', 
-        image: 'riverview.png',
-    },
-    { 
-        id: 6, 
-        name: "Wisconsin Great River Road",
-        type: 'Scenic Drive',
-        address: "",
-        city: '',
-        zip: '',
-        lat: 44.43530934029524, lon: -92.06268857579386,
-        parent_location_id: null,
-        description: 'A beautiful park with hiking trails and scenic views.', 
-        image: 'greatriver.png',
-    },
-    { 
-        id: 7, 
-        name: "Galesville Downtown Historic District",
-        type: 'Historic District',
-        address: "",
-        city: 'Galesville',
-        zip: '54630',
-        lat: 44.0972,
-        lon: -91.8881,
-        parent_location_id: null,
-        description: 'A beautiful, historic downtown area with shops and restaurants.', 
-        image: 'galesville.png',
-    },
-    { 
-        id: 8, 
-        name: "Oak Park Inn",
-        type: 'Lodging',
-        address: "18224 Ervin St",
-        city: 'Whitehall',
-        zip: '54773',
-        lat: 44.36434779864599, lon: -91.31186054127734,
-        parent_location_id: null,
-        description: '', 
-        image: 'oakpark.png',
-    },
-];
-
 export default function DetailScreen({route}: {route: any}) {
+    const navigation = useNavigation();
     const { locationId } = route.params;
-    const location = TEMPdata.find(loc => loc.id === locationId);
+    const location = locations.find(loc => loc.id === locationId);
     // TODO: Fetch location data based on locationId prop
     // TODO: Get image from assets based on location data
     // TODO: Get nearby locations based on lat/lon of location data), with parent (if applicable)
@@ -129,6 +28,8 @@ export default function DetailScreen({route}: {route: any}) {
             </View>
         </View>
     }
+
+    var nearby = locations.filter(loc => loc.id !== location.id && (loc.parent_location_id === location.id || location.parent_location_id === loc.id));
     return <ScrollView contentContainerStyle={styles.main}>
         <Text style={styles.title}>{location?.name}</Text>
         
@@ -144,18 +45,42 @@ export default function DetailScreen({route}: {route: any}) {
                 <Text>{location.description}</Text>
             </View>
         )}
+        {/*Add to Itinerary button*/}
+        <View style={{alignItems: 'center', width: '100%'}}>
+            <Pressable style={({ pressed }) => [
+              styles.button,
+              {
+                opacity: pressed ? 0.5 : 1, // Reduce opacity on press
+              },
+            ]} onPress={() => {}}>
+                <Text>Add to Itinerary</Text>
+            </Pressable>
+        </View>
+
+        {nearby.length > 0 && (
+            <View style={{alignItems: 'flex-start'}}>
+                <Text style={{textAlign: 'left', fontSize: 20, fontWeight: '500', marginTop: 24, marginBottom: 8}}>Nearby Locations</Text>
+                <ScrollView contentContainerStyle={{display: 'flex', flexDirection: 'row', gap: 16}} horizontal={true}>
+                    {/* Map through nearby locations and render LocationTile components */}
+                    {nearby.map((loc) => (
+                        <LocationTile key={loc.id} locationId={loc.id} title={loc.name} category={loc.type} subtitle={loc.city} description={loc.description} backgroundImg={loc.image ?? ""} onPress={() => {navigation.navigate('Detail', { locationId: loc.id })}} distance={loc.parent_location_id != null && loc.approxDistFromParent ? loc.approxDistFromParent : undefined} />
+                    ))}
+                </ScrollView>
+            </View>
+        )}
     </ScrollView>
     }
 
 const styles = StyleSheet.create({
     main: {
-        marginTop: 16,
+        marginVertical: 16,
         paddingHorizontal: 16,
         paddingVertical: 8,
         backgroundColor: '#FFFFFF',
         flex: 1,
         alignItems: 'center',
-        justifyContent: 'flex-start'
+        justifyContent: 'flex-start',
+        height: '120%',
     },
     mainImage: {
         width: '100%',
@@ -167,10 +92,19 @@ const styles = StyleSheet.create({
     mainContent: {
         marginTop: 16,
         width: '100%',
+        height: 'auto'
     },
     title: {
         fontSize: 24,
         fontWeight: '400',
         marginVertical: 8,
+    },
+    button: {
+        backgroundColor: '#E0E0E0',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        marginTop: 16,
     }
+
 });

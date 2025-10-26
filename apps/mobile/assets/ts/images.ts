@@ -25,6 +25,26 @@ export class BackgroundImage {
       name: 'longlake.png',
       image: require('../media-library/images/longlake.png'),
     },
+    {
+      name: 'greatriver.png',
+      image: require('../media-library/images/greatriver.png'),
+    },
+    {
+      name: 'galesville.png',
+      image: require('../media-library/images/galesville.png'),
+    },
+    {
+      name: 'trempealeau_nwr.png',
+      image: require('../media-library/images/trempealeau_nwr.png'),
+    },
+    {
+      name: 'buffalo_river.png',
+      image: require('../media-library/images/buffalo_river.png'),
+    },
+    {
+      name: 'buffalo_river_trail.png',
+      image: require('../media-library/images/buffalo_river_trail.png'),
+    }
   ];
 
   static GetImage = (name: string) => {
