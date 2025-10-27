@@ -19,7 +19,6 @@ export default function CategoryTile({ title, onPress }: CategoryTileProps) {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: '#EFEFF0',
         width: '66.7%',
         height: 'auto',
         marginHorizontal: 8,

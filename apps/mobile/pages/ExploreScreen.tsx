@@ -3,9 +3,12 @@ import {View,ScrollView, Text} from 'react-native'
 import CategoryTile from '../components/CategoryTile';
 import LocationTile from '../components/LocationTile';
 import SearchBar from '../components/SearchBar';
+import locations from '../assets/ts/locations';
+import { useNavigation } from '@react-navigation/native';
 
-function ExploreScreen() {
-  return <View style={{padding: 16}}> 
+export default function ExploreScreen() {
+  const navigation = useNavigation();
+  return <ScrollView contentContainerStyle={{padding: 16}}> 
       <SearchBar 
         placeholder="Search for trails, parks, and more"
         value={""}
@@ -18,15 +21,12 @@ function ExploreScreen() {
         <CategoryTile title="Biking" onPress={() => {}} />
       </ScrollView>
 
-      <Text style={{textAlign: "left", fontSize: 24, marginBottom: 16}}>Featured Trails</Text>
+      <Text style={{textAlign: "left", fontSize: 24, marginBottom: 16}}>Featured</Text>
       <ScrollView contentContainerStyle={{alignItems: 'center'}} horizontal={true}>
-        <LocationTile title="Perrot State Park" category="Parks" subtitle="Trempealeau, WI" description="Description. Lorem ipsum dolor sit amet consectetur adipiscing elit, sed do" backgroundImg={"perrot.png"} onPress={() => {}} />
-        <LocationTile title="Perrot Ridge Trail" category="Hike" subtitle="Perrot State Park" description="Description. Lorem ipsum dolor sit amet consectetur adipiscing elit, sed do" backgroundImg={"perrotridge.png"} difficulty="Moderate" distance={3.5} onPress={() => {}} />
-        <LocationTile title="Tamarack Creek Wildlife Area" category="Parks" subtitle="Galesville, WI" backgroundImg={"tamarackcreek.png"} onPress={() => {}} />
-        <LocationTile title="Long Lake Boat Launch" category="Water" subtitle="Cascade, WI" backgroundImg={"longlake.png"} onPress={() => {}} />
+        {locations.filter(loc => loc.parent_location_id === null && (loc.type != "Lodging" && loc.type !== "Business")).slice(0, 5).map((loc) => (
+          <LocationTile key={loc.id} locationId={loc.id} title={loc.name} category={loc.type} subtitle={loc.city} description={loc.description} backgroundImg={loc.image} onPress={() => {navigation.navigate('Detail', { locationId: loc.id })}} />
+        ))}
       </ScrollView>
       
-  </View>
+  </ScrollView>
 }
-
-export default ExploreScreen;
