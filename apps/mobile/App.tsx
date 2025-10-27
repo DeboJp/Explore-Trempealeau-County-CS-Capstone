@@ -5,7 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import ExploreScreen from './pages/ExploreScreen'
 import SavedScreen from './pages/SavedScreen'
-import ProfileScreen from './pages/ProfileScreen'
+import MapScreen from './pages/MapScreen'
 import DetailScreen from './pages/DetailScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -35,7 +35,7 @@ function AppTabs() {
                 ? 'https://cdn-icons-png.flaticon.com/512/3082/3082487.png' : 'https://cdn-icons-png.flaticon.com/512/447/447031.png';
             } else if (route.name === 'Saved') {
               iconUrl = focused ? 'https://cdn-icons-png.flaticon.com/512/833/833472.png' : 'https://cdn-icons-png.flaticon.com/512/1077/1077035.png';
-            } else if (route.name === 'Profile') {
+            } else if (route.name === 'MapScreen') {
               iconUrl = focused ? 'https://cdn-icons-png.flaticon.com/512/1077/1077114.png' : 'https://cdn-icons-png.flaticon.com/512/747/747376.png';
             }
             return (
@@ -48,7 +48,9 @@ function AppTabs() {
         })}
       >
         <SocialTab.Screen name="Explore" component={ExploreScreen} />
+        <SocialTab.Screen name="MapScreen" component={MapScreen} />
         <SocialTab.Screen name="Saved" component={SavedScreen} />
+
       </SocialTab.Navigator>
   );
 }
