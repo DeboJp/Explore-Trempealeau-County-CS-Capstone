@@ -61,7 +61,7 @@ export default function App() {
           headerTitle: getHeaderTitle(route), headerShown: false,
         })}/>
         {/*Pages not included in tabs go here (Detail, Filter, etc.) */}
-        <Stack.Screen name="Detail" component={DetailScreen} options={{headerTitleStyle: { fontSize: 28, fontWeight: '500', paddingBottom: 10 }}}/>
+        <Stack.Screen name="Detail" component={DetailScreen} options={{headerTitleStyle: { fontSize: 28, fontWeight: '500'}}}/>
       </Stack.Navigator>
     </NavigationContainer>
   );
