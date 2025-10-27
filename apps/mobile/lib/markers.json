@@ -1,0 +1,23 @@
+[
+  {
+    "id": "m1",
+    "title": "Campus Library",
+    "lat": 43.0766,
+    "lng": -89.4125,
+    "icon": "library.png"
+  },
+  {
+    "id": "m2",
+    "title": "Meat Shop",
+    "lat": 43.0747,
+    "lng": -89.3996,
+    "iconUrl": "https://cdn-icons-png.flaticon.com/512/2935/2935401.png"
+  },
+  {
+    "id": "m3",
+    "title": "Picnic Spot",
+    "lat": 43.0789,
+    "lng": -89.4201,
+    "icon": "library.png"
+  }
+]
