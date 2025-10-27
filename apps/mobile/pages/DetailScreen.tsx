@@ -1,9 +1,10 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react';
 import {View,ScrollView, Text, Image, StyleSheet, Pressable} from 'react-native'
 import { BackgroundImage } from '../assets/ts/images';
 import LocationTile from '../components/LocationTile';
 import { useNavigation } from '@react-navigation/native';
 import locations from '../assets/ts/locations';
+import { isSaved as storeIsSaved, toggleSaved as storeToggle } from '../lib/savedStore';
 
 interface DetailScreenProps {
     locationId: string;
@@ -13,6 +14,23 @@ export default function DetailScreen({route}: {route: any}) {
     const navigation = useNavigation();
     const { locationId } = route.params;
     const location = locations.find(loc => loc.id === locationId);
+
+    // Local state to track whether this location is currently saved
+    const [saved, setSaved] = useState(false);
+    // When the screen loads or location changes, check if it's already saved
+    useEffect(() => {
+    let mounted = true; // safety flag to prevent state updates after unmount
+
+    (async () => {
+        if (location) {
+        const v = await storeIsSaved(location.id);// check saved status in storage
+        if (mounted) setSaved(v);// update UI only if still mounted
+        }
+    })();
+    // Cleanup to avoid memory leaks when component unmounts
+    return () => { mounted = false; };
+    }, [location?.id]); // re-run if a new location is opened
+
     // TODO: Fetch location data based on locationId prop
     // TODO: Get image from assets based on location data
     // TODO: Get nearby locations based on lat/lon of location data), with parent (if applicable)
@@ -45,16 +63,24 @@ export default function DetailScreen({route}: {route: any}) {
                 <Text>{location.description}</Text>
             </View>
         )}
-        {/*Add to Itinerary button*/}
+        {/*Add button*/}
         <View style={{alignItems: 'center', width: '100%'}}>
-            <Pressable style={({ pressed }) => [
-              styles.button,
-              {
-                opacity: pressed ? 0.5 : 1, // Reduce opacity on press
-              },
-            ]} onPress={() => {}}>
-                <Text>Add to Itinerary</Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12 }}>
+                {/* Itinerary Button */}
+                <Pressable style={({ pressed }) => [styles.button,{ opacity: pressed ? 0.5 : 1},]} onPress={() => {}}>
+                    <Text>Add to Itinerary</Text>
+                </Pressable>
+
+                {/* Save button */}
+                <Pressable style={({ pressed }) => [styles.button, { opacity: pressed ? 0.5 : 1 }]}
+                onPress={async () => {
+                    const now = await storeToggle(location.id);
+                    setSaved(now);
+                }}
+                >
+                <Text>{saved ? "Saved" : "Save"}</Text>
+                </Pressable>
+            </View>
         </View>
 
         {nearby.length > 0 && (
