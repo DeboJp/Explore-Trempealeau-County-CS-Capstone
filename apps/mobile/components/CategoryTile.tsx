@@ -1,16 +1,19 @@
 import React from 'react';
-import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, Image} from 'react-native';
+import {Icons} from '../assets/ts/icons';
 
 interface CategoryTileProps {
   title: string;
+  icon: string;
   onPress: () => void;
 }
 
-export default function CategoryTile({ title, onPress }: CategoryTileProps) {
+export default function CategoryTile({ title, icon, onPress }: CategoryTileProps) {
+    const iconSource = Icons.GetIcon(icon);
     return (
         <TouchableOpacity onPress={onPress}>
             <View style={styles.container}>
-                <View style={styles.border} />
+                {iconSource && <Image source={iconSource} style={{...styles.border, width: 72, height: 72}} />}
                 <Text style={styles.title}>{title}</Text>
             </View>
         </TouchableOpacity>
@@ -26,15 +29,12 @@ const styles = StyleSheet.create({
         paddingBottom: 16,
     },
     border: {
-        width: '100%',
         aspectRatio: 1,
-        borderColor: '#AFB1B6',
-        borderWidth: 1,
-        borderRadius: 100,
         marginBottom: 8,
     },
     title: {
         width: '100%',
         textAlign: 'center',
+        fontSize: 16,
     },
 });

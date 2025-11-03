@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable, ImageBackground } from "react-native";
+import { View, Text, StyleSheet, Pressable, ImageBackground, Image, TouchableOpacity } from "react-native";
+import {Icons} from '../assets/ts/icons';
 
 type SavedCardProps = {
   title: string;
@@ -17,13 +18,14 @@ export default function SavedCard({ title, distance = "", date = "", isSaved = t
 
   return (
     // Whole card is tappable to open Detail
-    <Pressable style={styles.card} onPress={onPress}>
+    <TouchableOpacity style={styles.card} onPress={onPress}>
       <ImageBackground source={source} style={styles.image} imageStyle={styles.radius} resizeMode="cover">
         {/* Star badge (tap to remove from saved) */}
         <Pressable style={styles.badge} onPress={onRemove}>
-          <Text style={styles.badgeText}>{isSaved ? "★" : "☆"}</Text>
+          <TouchableOpacity style={{width: 16, aspectRatio: 1}}>
+            <Image source={isSaved ? Icons.GetIcon('star-solid-white') : Icons.GetIcon('star-outline-white')} style={{width: '100%', height: '100%'}} />
+          </TouchableOpacity>
         </Pressable>
-
         {/* Bottom info strip */}
         <View style={styles.textBar}>
           <Text style={styles.title}>{title}</Text>
@@ -33,7 +35,7 @@ export default function SavedCard({ title, distance = "", date = "", isSaved = t
           </View>
         </View>
       </ImageBackground>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 

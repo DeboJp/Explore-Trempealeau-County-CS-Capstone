@@ -21,7 +21,7 @@ export default function SearchBar({ placeholder, value, onChangeText }: SearchBa
 
 const styles = StyleSheet.create({
   container: {
-    width: '66.7%',
+    width: '80%',
     height: 40,
     borderWidth: 1,
     backgroundColor: '#F5F5F5',

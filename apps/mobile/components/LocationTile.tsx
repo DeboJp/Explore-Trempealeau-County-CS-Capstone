@@ -5,6 +5,7 @@ import TileTag from './TileTag';
 import {BackgroundImage} from '../assets/ts/images'
 import BottomUpModal from './BottomUpModal';
 import { useNavigation } from '@react-navigation/native';
+import {LinearGradient} from 'expo-linear-gradient';
 
 interface LocationTileProps {
   locationId?: Int32;
@@ -58,29 +59,20 @@ export default function LocationTile({ locationId,title, category, subtitle, des
                 {difficulty && (
                     <TileTag text={difficulty} backgroundColor={tagColor(difficulty)} style={{...styles.difficultyTag}} />
                 )}
-            </ImageBackground>
-            
-            
-            <View style={{...styles.textContainer}}>
+                <LinearGradient 
+                  start={{x: 0.0, y: 0.5}} end={{x: 0.0, y: 0.68}}
+                  colors={['transparent', '#EFEFF0']} 
+                  style={{height : '120%', width : '100%', bottom: 0, position: 'absolute'}}>
+                </LinearGradient>
+                <View style={{position: 'absolute', top: '57.5%', width: '100%', left: 11}}>
+                <Text style={{color: '#1F2024', fontSize: 18, fontWeight: 500, width: '70%'}}>{title}</Text>
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4}}>
-                    <Text style={{color: '#1F2024', fontSize: 14, fontWeight: 'bold', width: '80%'}}>{title}</Text>
-                    {distance && <Text style={{color: '#0D83FD', fontSize: 12, fontWeight: 400, alignSelf: 'flex-start'}}>{distance} mi</Text>}
+                    <Text style={{color: '#71727A', fontSize: 16, marginBottom: 4}}>{subtitle?.includes("County") || subtitle?.length === 0 ? "Trempealeau County" : `${subtitle}, WI`}</Text>
+                    {distance && <Text style={{position: 'absolute', right: 24, color: '#0D83FD', fontSize: 16, fontWeight: 400, alignSelf: 'flex-start'}}>{distance} mi</Text>}
                 </View>
-                <Text style={{color: '#71727A', fontSize: 12, marginBottom: 4}}>{subtitle}</Text>
-                <Text style={{color: '#494A50', fontSize: 12}}>{description}</Text>
-                <View style={{...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8}}>
-                    <TouchableOpacity>
-                        <Pressable style={({ pressed }) => [
-                          styles.detailsButton,
-                          {
-                            opacity: pressed ? 0.5 : 1, // Reduce opacity on press
-                          },
-                        ]} onPress={onPress}>
-                          <Text>Details</Text>
-                        </Pressable>
-                    </TouchableOpacity>
-                </View>
+                <Text style={{color: '#494A50', fontSize: 12, flexWrap: 'wrap', paddingRight: 8}}>{description}</Text>
             </View>
+            </ImageBackground>
         </View>
       </TouchableOpacity>
       {openModal && (
@@ -120,7 +112,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   textContainer: {
-    backgroundColor: '#EFEFF0', padding: 8, height: '50%'
+    backgroundColor: '#EFEFF0', padding: 8, height: '40%',
   },
   categoryTag: {
     paddingTop: 4,
