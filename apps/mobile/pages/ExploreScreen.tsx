@@ -33,20 +33,25 @@ export default function ExploreScreen() {
   }
 
   return <ScrollView contentContainerStyle={{ padding: 16 }}>
-    <SearchBar
-      placeholder="Search for trails, parks, and more"
-      value={searchText}
-      onChangeText={(text) => {
-        setSearchText(text);
-        setPage(1);
-      }}
-    />
-    <Text style={{ textAlign: "left", fontSize: 24, marginBottom: 16, paddingTop: 16, paddingBottom: 16 }}>Categories</Text>
-    <ScrollView contentContainerStyle={{ alignItems: 'center' }} horizontal={true}>
-      <CategoryTile title="Hiking" onPress={() => { }} />
-      <CategoryTile title="Water" onPress={() => { }} />
-      <CategoryTile title="Biking" onPress={() => { }} />
-    </ScrollView>
+    <View style={{display: 'flex', alignItems: 'center'}}>
+      <SearchBar
+        placeholder="Search for trails, parks, and more"
+        value={searchText}
+        onChangeText={(text) => {
+          setSearchText(text);
+          setPage(1);
+        }}
+      />
+      </View>
+      <Text style={{ textAlign: "left", fontSize: 24, marginBottom: 8, paddingTop: 16, paddingBottom: 8, fontWeight: 500 }}>Categories</Text>
+      <View style={{display: 'flex', alignItems: 'center'}}>
+      <ScrollView contentContainerStyle={{ alignItems: 'center' }} horizontal={true}>
+        <CategoryTile title="Hiking" icon="hiking" onPress={() => { navigation.navigate('Results', { results: locations.filter(loc => loc.type === 'Hike'), title: 'Hiking' }) }} />
+        <CategoryTile title="Biking" icon="biking" onPress={() => { navigation.navigate('Results', { results: locations.filter(loc => loc.type === 'Bike'), title: 'Biking' })}} />
+        <CategoryTile title="Water" icon="water" onPress={() => { navigation.navigate('Results', { results: locations.filter(loc => loc.type === 'Water'), title: 'Water Access' })}} />
+        <CategoryTile title="Shop" icon="business" onPress={() => { }} />
+      </ScrollView>
+    </View>
 
     <Text style={{ textAlign: "left", fontSize: 24, marginBottom: 16 }}>Featured</Text>
     <ScrollView contentContainerStyle={{ alignItems: 'center' }} horizontal={true}>
@@ -59,7 +64,7 @@ export default function ExploreScreen() {
           subtitle={loc.city}
           description={loc.description}
           backgroundImg={loc.image}
-          onPress={() => { navigation.navigate('Detail', { locationId: loc.id }) }}
+          onPress={() => { navigation.navigate('Details', { locationId: loc.id }) }}
         />
       ))}
     </ScrollView>

@@ -2,6 +2,7 @@ import { View, ScrollView, Text } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import SavedCard from "../components/SavedCards";
+import SavedFolder from "../components/SavedFolder";
 import { getSavedItems, toggleSaved } from "../lib/savedStore";
 import { BackgroundImage } from "../assets/ts/images";
 
@@ -24,25 +25,33 @@ export default function SavedScreen() {
       </View>
     );
 
+  const categories = items.reduce((acc: {[key: string]: any[]}, item) => {
+    if (!acc[item.type + 's']) {
+      acc[item.type + 's'] = [];
+    }
+    acc[item.type + 's'].push(item);
+    return acc;
+  }, {})
   // Render list of saved cards
   return (
-    <ScrollView contentContainerStyle={{ paddingVertical: 8 }}>
-      {items.map((loc) => (
-        <SavedCard key={loc.id} title={loc.name} distance={loc.city} date={loc.type} isSaved={true}
-          // if source remote pull from web, else from local assets.
-          imageSource={ 
-            loc.image?.startsWith?.("http")
-              ? { uri: loc.image }
-              : BackgroundImage.GetImage(loc.image || "perrot.png")
-          }
-          // When card is tapped, navigate to Detail page for that location
-          onPress={() => nav.navigate("Detail", { locationId: loc.id })}
-          onRemove={async () => { // When star badge is tapped → remove from saved list and update state
-            await toggleSaved(loc.id);
-            setItems((prev) => prev.filter((x) => x.id !== loc.id));
-          }}
-        />
-      ))}
-    </ScrollView>
+    <View style={{ flex: 1, paddingTop: 8, paddingBottom: 92 }}>
+      <ScrollView>
+        {Object.entries(categories).map(([category, items]) => (
+          <SavedFolder key={category} category={category} count={items.length}
+            imageSource={
+              // Use image of first item in category as folder cover
+              items[0].image?.startsWith?.("http")
+                ? { uri: items[0].image }
+                : BackgroundImage.GetImage(items[0].image || "perrot.png")
+            }
+            onPress={() => {
+              // Navigate to a new screen showing items in this category
+              console.log(items);
+              nav.navigate("Results", { results: items, title: category });
+            }}
+          />
+        ))}
+      </ScrollView>
+    </View>
   );
 }
