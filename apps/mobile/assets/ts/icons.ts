@@ -121,6 +121,14 @@ export class Icons {
       name: 'bookmark-outline-white',
       image: require('../media-library/icons/bookmark-regular-full-white.png'),
     },
+    {
+      name: 'gallery',
+      image: require('../media-library/icons/image-regular-full.png'),
+    },
+    {
+      name: 'gallery-white',
+      image: require('../media-library/icons/image-regular-full-white.png'),
+    },
   ];
 
   static GetIcon = (name: string) => {

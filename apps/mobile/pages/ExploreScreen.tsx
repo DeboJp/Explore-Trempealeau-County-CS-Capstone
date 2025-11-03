@@ -46,9 +46,9 @@ export default function ExploreScreen() {
       <Text style={{ textAlign: "left", fontSize: 24, marginBottom: 8, paddingTop: 16, paddingBottom: 8, fontWeight: 500 }}>Categories</Text>
       <View style={{display: 'flex', alignItems: 'center'}}>
       <ScrollView contentContainerStyle={{ alignItems: 'center' }} horizontal={true}>
-        <CategoryTile title="Hiking" icon="hiking" onPress={() => { }} />
-        <CategoryTile title="Biking" icon="biking" onPress={() => { }} />
-        <CategoryTile title="Water" icon="water" onPress={() => { }} />
+        <CategoryTile title="Hiking" icon="hiking" onPress={() => { navigation.navigate('Results', { results: locations.filter(loc => loc.type === 'Hike'), title: 'Hiking' }) }} />
+        <CategoryTile title="Biking" icon="biking" onPress={() => { navigation.navigate('Results', { results: locations.filter(loc => loc.type === 'Bike'), title: 'Biking' })}} />
+        <CategoryTile title="Water" icon="water" onPress={() => { navigation.navigate('Results', { results: locations.filter(loc => loc.type === 'Water'), title: 'Water Access' })}} />
         <CategoryTile title="Shop" icon="business" onPress={() => { }} />
       </ScrollView>
     </View>
@@ -64,7 +64,7 @@ export default function ExploreScreen() {
           subtitle={loc.city}
           description={loc.description}
           backgroundImg={loc.image}
-          onPress={() => { navigation.navigate('Detail', { locationId: loc.id }) }}
+          onPress={() => { navigation.navigate('Details', { locationId: loc.id }) }}
         />
       ))}
     </ScrollView>

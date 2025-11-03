@@ -3,17 +3,15 @@ import { View, Text, StyleSheet, Pressable, ImageBackground, Image, TouchableOpa
 import {Icons} from '../assets/ts/icons';
 import { LinearGradient } from "expo-linear-gradient";
 
-type SavedCardProps = {
-  title: string;
-  distance?: string;
-  date?: string;
-  isSaved?: boolean;
+type SavedFolderProps = {
+  category: string;
+  count: number;
   imageSource?: any;      // number | { uri: string }
   onPress?: () => void;
   onRemove?: () => void;
 };
 
-export default function SavedCard({ title, distance = "", date = "", isSaved = true, imageSource, onPress, onRemove}: SavedCardProps) {
+export default function SavedCard({ category, count, imageSource, onPress, onRemove}: SavedFolderProps) {
   // Fallback image to avoid ImageBackground errors when source is missing/invalid
   const source = imageSource || { uri: "https://picsum.photos/400/240" };
 
@@ -21,19 +19,10 @@ export default function SavedCard({ title, distance = "", date = "", isSaved = t
     // Whole card is tappable to open Detail
     <TouchableOpacity onPress={onPress}>
       <ImageBackground source={source} style={styles.card} imageStyle={styles.radius} resizeMode="cover">
-
-        {/* Star badge (tap to remove from saved) */}
-        <Pressable style={styles.badge} onPress={onRemove}>
-          <View style={{width: 24, aspectRatio: 1}}>
-            <Image source={isSaved ? Icons.GetIcon('star-solid-white') : Icons.GetIcon('star-outline-white')} style={{width: '100%', height: '100%'}} />
-          </View>
-        </Pressable>
         {/* Bottom info strip */}
-        <View style={{width: '100%', position: 'absolute', bottom: 8, left: 8, padding: 8, zIndex: 2}}>
-          <Text style={styles.title}>{title}</Text>
-          <View style={styles.row}>
-            {(distance !== "") && <Text style={styles.meta}>{distance} mi</Text>}
-          </View>
+        <View style={{...styles.row, alignItems: 'center', width: '100%', position: 'absolute', bottom: 8, left: 8, padding: 8, zIndex: 2}}>
+          <Text style={styles.title}>{category}</Text>
+          <Text style={{...styles.meta, right: 12}}>{count}</Text>
         </View>
 
         <LinearGradient 
@@ -74,7 +63,14 @@ const styles = StyleSheet.create({
   textBar: {
     padding: 8,
   },
-  title: { fontWeight: "400", fontSize: 24, color: '#FFFFFF', maxWidth: '90%' },
+  title: { fontWeight: "400", fontSize: 24, color: '#FFFFFF' },
   row: { flexDirection: "row", justifyContent: "space-between" },
-  meta: { color: "#FFFFFF", fontSize: 16 },
+  meta: {
+    paddingHorizontal: 21,
+    paddingVertical: 16,
+    backgroundColor: "#c19b50c5",
+    color: "#FFFFFF",
+    fontSize: 18,
+    borderRadius: 30,
+  }
 });

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import {View,ScrollView, Text, Image, StyleSheet, Pressable} from 'react-native'
+import {View,ScrollView, Text, Image, ImageBackground, StyleSheet, Pressable} from 'react-native'
 import { BackgroundImage } from '../assets/ts/images';
 import LocationTile from '../components/LocationTile';
 import { useNavigation } from '@react-navigation/native';
+import {LinearGradient} from 'expo-linear-gradient';
 import locations from '../assets/ts/locations';
 import { isSaved as storeIsSaved, toggleSaved as storeToggle } from '../lib/savedStore';
+import { Icons } from '../assets/ts/icons';
 
 interface DetailScreenProps {
     locationId: string;
@@ -48,11 +50,17 @@ export default function DetailScreen({route}: {route: any}) {
     }
 
     var nearby = locations.filter(loc => loc.id !== location.id && (loc.parent_location_id === location.id || location.parent_location_id === loc.id));
-    return <ScrollView contentContainerStyle={styles.main}>
-        <Text style={styles.title}>{location?.name}</Text>
-        
+    return <View style={styles.main}>
+        <ScrollView>
         {backgroundImage && (
-            <Image source={backgroundImage} style={styles.mainImage} resizeMode="cover" />
+            <ImageBackground source={backgroundImage} style={{ width: '100%', height: 400 }} resizeMode="cover">
+                <LinearGradient 
+                  start={{x: 0.0, y: 0.78}} end={{x: 0.0, y: 0.99}}
+                  colors={['transparent', '#fffffff7']} 
+                  style={{height : '120%', width : '100%', bottom: 0, position: 'absolute'}}>
+                </LinearGradient>
+                {/* <Image source={Icons.GetIcon('gallery')} style={{ width: 40, height: 40, position: 'absolute', bottom: 20, right: 10, opacity: 0.8}} /> */}
+            </ImageBackground>
         )}
         {!backgroundImage && (<View style={{...styles.mainImage, height: 200}}>
                 <Text style={{opacity: 0}}>Image not found.</Text>
@@ -60,63 +68,89 @@ export default function DetailScreen({route}: {route: any}) {
         )}
         {location && (
             <View style={{...styles.mainContent}}>
-                <Text>{location.description}</Text>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'start', width: '100%', paddingTop: 8}}>
+                    <View style={{flexDirection: 'column', maxWidth: '80%'}}>
+                        <Text style={{ color: 'black', fontSize: 32, fontWeight: '600' }}>{location?.name}</Text>
+                    </View>
+                    <Pressable
+                        onPress={async () => {
+                            const now = await storeToggle(location.id);
+                            setSaved(now);
+                        }}
+                        >
+                        <Image source={saved ? Icons.GetIcon('bookmark-solid') : Icons.GetIcon('bookmark-outline')} style={{ width: 30, height: 30, tintColor: '#000000', opacity: 0.8, padding: 0.5 }} />
+                    </Pressable>
+                </View>
+                {/* Activity type tags */}
+                {location?.activityTags && (
+                    <ScrollView horizontal={true} contentContainerStyle={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8}}>
+                        {location.activityTags.map(tag => (
+                            <View key={tag} style={{backgroundColor: '#D9D9D9', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 30}}>
+                                <Text style={{color: 'black', fontSize: 18}}>{tag}</Text>
+                            </View>
+                        ))}
+                    </ScrollView>
+                )}
+                <Text style={{ color: 'black', fontSize: 20, fontWeight: '400', marginTop: 8 }}>{location.city && location.city.length > 0 ? location.city : 'Trempealeau County'}, WI</Text>
+                <Text style={{ color: 'black', fontSize: 16, marginTop: 8 }}>{location.description}</Text>
             </View>
         )}
         {/*Add button*/}
-        <View style={{alignItems: 'center', width: '100%'}}>
+        {/* <View style={{alignItems: 'center', width: '100%'}}>
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12 }}>
                 {/* Itinerary Button */}
-                <Pressable style={({ pressed }) => [styles.button,{ opacity: pressed ? 0.5 : 1},]} onPress={() => {}}>
+                {/* <Pressable style={({ pressed }) => [styles.button,{ opacity: pressed ? 0.5 : 1},]} onPress={() => {}}>
                     <Text>Add to Itinerary</Text>
-                </Pressable>
+                </Pressable> */}
 
                 {/* Save button */}
-                <Pressable style={({ pressed }) => [styles.button, { opacity: pressed ? 0.5 : 1 }]}
+                {/* <Pressable style={({ pressed }) => [styles.button, { opacity: pressed ? 0.5 : 1 }]}
                 onPress={async () => {
                     const now = await storeToggle(location.id);
                     setSaved(now);
                 }}
                 >
-                <Text>{saved ? "Saved" : "Save"}</Text>
+                <Text style={{ fontSize: 18}}>{saved ? "Saved" : "Save"}</Text>
                 </Pressable>
-            </View>
-        </View>
+            </View> */}
+        {/* </View> */}
 
         {nearby.length > 0 && (
-            <View style={{alignItems: 'flex-start'}}>
+            <View style={{alignItems: 'flex-start', paddingHorizontal: 12}}>
                 <Text style={{textAlign: 'left', fontSize: 20, fontWeight: '500', marginTop: 24, marginBottom: 8}}>Nearby Locations</Text>
                 <ScrollView contentContainerStyle={{display: 'flex', flexDirection: 'row', gap: 16}} horizontal={true}>
                     {/* Map through nearby locations and render LocationTile components */}
                     {nearby.map((loc) => (
-                        <LocationTile key={loc.id} locationId={loc.id} title={loc.name} category={loc.type} subtitle={loc.city} description={loc.description} backgroundImg={loc.image ?? ""} onPress={() => {navigation.navigate('Detail', { locationId: loc.id })}} distance={loc.parent_location_id != null && loc.approxDistFromParent ? loc.approxDistFromParent : undefined} />
+                        <LocationTile key={loc.id} locationId={loc.id} title={loc.name} category={loc.type} subtitle={loc.city} description={loc.description} backgroundImg={loc.image ?? ""} onPress={() => {navigation.navigate('Details', { locationId: loc.id })}} distance={loc.parent_location_id != null && loc.approxDistFromParent ? loc.approxDistFromParent : undefined} />
                     ))}
                 </ScrollView>
             </View>
         )}
     </ScrollView>
+    </View>
     }
 
 const styles = StyleSheet.create({
     main: {
-        marginVertical: 16,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        display: 'flex',
+        margin: 0,
         backgroundColor: '#FFFFFF',
         flex: 1,
         alignItems: 'center',
         justifyContent: 'flex-start',
-        height: '120%',
+        fontFamily: 'DM Sans',
+        height: 'auto'
     },
     mainImage: {
         width: '100%',
         maxHeight: 200,
         borderRadius: 10,
         backgroundColor: '#D9D9D9',
-        marginTop: 8,
+        marginTop: 0,
     },
     mainContent: {
-        marginTop: 16,
+        paddingHorizontal: 12,
+        marginTop: 0,
         width: '100%',
         height: 'auto'
     },

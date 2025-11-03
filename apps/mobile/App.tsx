@@ -8,6 +8,7 @@ import ExploreScreen from './pages/ExploreScreen'
 import SavedScreen from './pages/SavedScreen'
 import MapScreen from './pages/MapScreen'
 import DetailScreen from './pages/DetailScreen';
+import ResultsScreen from './pages/ResultsScreen';
 import {Icons} from './assets/ts/icons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -27,7 +28,7 @@ function AppTabs() {
     <SocialTab.Navigator
         initialRouteName="Explore"
         screenOptions={({ route }) => ({
-          headerTitleStyle: { fontSize: 28, fontWeight: '500', paddingBottom: 20 },
+          headerTitleStyle: { fontSize: 28, fontWeight: '500', paddingBottom: 20, backgroundColor: 'transparent' },
           tabBarStyle: { position: 'absolute', borderRadius: 40, margin: 10, height: 90, backgroundColor: '#266AB1', color: '#E1EDFF', paddingTop: 16},
           tabBarLabel: ({ focused }) => (
             focused ? <Text style={{ fontSize: 16, color: '#E1EDFF', fontWeight: '500', paddingTop: 20, borderBottomWidth: 3, borderBottomColor: '#E1EDFF', paddingBottom: 8 }}>{route.name}</Text> : <Text style={{ fontSize: 16, color: '#E1EDFF', fontWeight: '500', paddingTop: 24, paddingBottom: 4 }}>{route.name}</Text>
@@ -39,7 +40,7 @@ function AppTabs() {
             } else if (route.name === 'Saved') {
               iconUrl = Icons.GetIcon('bookmark-solid-white');
             } else if (route.name === 'Map') {
-              iconUrl = Icons.GetIcon('map-white');
+              iconUrl = Icons.GetIcon('location-pin-white');
             }
             return (
               <Image 
@@ -51,8 +52,8 @@ function AppTabs() {
         })}
       >
         <SocialTab.Screen name="Explore" component={ExploreScreen} />
-        <SocialTab.Screen name="Saved" component={SavedScreen} />
         <SocialTab.Screen name="Map" component={MapScreen} />
+        <SocialTab.Screen name="Saved" component={SavedScreen} />
 
       </SocialTab.Navigator>
   );
@@ -63,10 +64,12 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen name="Tabs" component={AppTabs} options={({ route }) => ({
+          headerTransparent: true,
           headerTitle: getHeaderTitle(route), headerShown: false,
         })}/>
         {/*Pages not included in tabs go here (Detail, Filter, etc.) */}
-        <Stack.Screen name="Detail" component={DetailScreen} options={{headerTitleStyle: { fontSize: 28, fontWeight: '500'}}}/>
+        <Stack.Screen name="Details" component={DetailScreen} options={{headerTransparent: true, headerTitleStyle: { fontSize: 28, fontWeight: '500'}}}/>
+        <Stack.Screen name="Results" component={ResultsScreen} options={({route}) => ({title: route.params.title ?? 'Results', headerTransparent: true, headerTitleStyle: { fontSize: 28, fontWeight: '500'}})}/>
       </Stack.Navigator>
     </NavigationContainer>
   );
