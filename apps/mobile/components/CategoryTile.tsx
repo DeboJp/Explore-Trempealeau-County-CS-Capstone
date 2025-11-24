@@ -33,8 +33,9 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     title: {
-        width: '100%',
+        width: '200%',
         textAlign: 'center',
+        flexShrink: 1,
         fontSize: 16,
     },
 });
