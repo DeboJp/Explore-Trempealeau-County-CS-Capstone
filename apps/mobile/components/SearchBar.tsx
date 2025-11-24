@@ -5,8 +5,9 @@ interface SearchBarProps {
     placeholder?: string;
     value: string;
     onChangeText: (text: string) => void;
-    }
-export default function SearchBar({ placeholder, value, onChangeText }: SearchBarProps) {
+    onSubmit?: () => void;
+}
+export default function SearchBar({ placeholder, value, onChangeText, onSubmit }: SearchBarProps) {
   return (
     <View style={styles.container}>
       <TextInput
@@ -14,6 +15,7 @@ export default function SearchBar({ placeholder, value, onChangeText }: SearchBa
         placeholder={placeholder || 'Search'}
         value={value}
         onChangeText={onChangeText}
+        onSubmitEditing={() => onSubmit && onSubmit()}
       />
     </View>
   );
