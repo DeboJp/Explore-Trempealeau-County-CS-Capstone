@@ -83,8 +83,7 @@ export default function ExploreScreen() {
     const filtered = locations.filter(loc =>
       loc.parent_location_id === null &&
       loc.type !== "Lodging" &&
-      loc.type !== "Business" &&
-      loc.name.toLowerCase().includes(searchText.toLowerCase())
+      loc.type !== "Business"
     );
     return filtered.slice(0, page * itemsPerPage);
   };
@@ -167,6 +166,30 @@ export default function ExploreScreen() {
 
 
     </View>
+
+    <View style={{ display: 'flex', alignItems: 'center', paddingTop: 16 }}>
+      <ScrollView contentContainerStyle={{ alignItems: 'center' }} horizontal={true}>
+          {cities.slice(0, 8).map((c) => (
+            <TouchableOpacity
+              key={`city-tile-${c}`}
+              onPress={() => (navigation as any).navigate('Results', { results: locations.filter(l => (l.city || '').toLowerCase() === (c || '').toLowerCase()), title: c })}
+              style={{
+                backgroundColor: '#EFEFF4',
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 20,
+                marginHorizontal: 6,
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 88,
+              }}
+            >
+              <Text style={{ color: '#1f2937', fontSize: 14, fontWeight: '600' }}>{c}</Text>
+            </TouchableOpacity>
+          ))}
+      </ScrollView>
+    </View>
+
     <Text style={{ textAlign: "left", fontSize: 24, marginBottom: 8, paddingTop: 16, paddingBottom: 8, fontWeight: 500 }}>Categories</Text>
     <View style={{ display: 'flex', alignItems: 'center' }}>
       <ScrollView contentContainerStyle={{ alignItems: 'center' }} horizontal={true}>
@@ -174,17 +197,6 @@ export default function ExploreScreen() {
         <CategoryTile title="Biking" icon="biking" onPress={() => { (navigation as any).navigate('Results', { results: locations.filter(loc => loc.type === 'Bike' || (loc.activityTags || []).includes('Biking')), title: 'Biking' }) }} />
         <CategoryTile title="Water" icon="water" onPress={() => { (navigation as any).navigate('Results', { results: locations.filter(loc => loc.type === 'Water' || (loc.activityTags || []).includes('Boating') || (loc.activityTags || []).includes('Fishing')), title: 'Water Access' }) }} />
         <CategoryTile title="Shop" icon="business" onPress={() => { (navigation as any).navigate('Results', { results: locations.filter(loc => loc.type === 'Business' || loc.type === 'Shop'), title: 'Shops' }) }} />
-      </ScrollView>
-    </View>
-
-    <Text style={{ textAlign: "left", fontSize: 24, marginTop: 16, marginBottom: 8 }}>Cities</Text>
-    <View style={{ display: 'flex', alignItems: 'center' }}>
-      <ScrollView contentContainerStyle={{ alignItems: 'center' }} horizontal={true}>
-        {cities.slice(0, 8).map((c) => (
-          <TouchableOpacity key={`city-tile-${c}`} onPress={() => (navigation as any).navigate('Results', { results: locations.filter(l => (l.city || '').toLowerCase() === (c || '').toLowerCase()), title: c })}>
-            <CategoryTile title={c} icon="location" onPress={() => (navigation as any).navigate('Results', { results: locations.filter(l => (l.city || '').toLowerCase() === (c || '').toLowerCase()), title: c })} />
-          </TouchableOpacity>
-        ))}
       </ScrollView>
     </View>
 
