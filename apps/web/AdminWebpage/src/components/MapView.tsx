@@ -1,5 +1,7 @@
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import { Icon } from 'leaflet'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faMap } from '@fortawesome/free-solid-svg-icons'
 import 'leaflet/dist/leaflet.css'
 
 // Fix for missing marker icons in some Vite setups
@@ -16,11 +18,10 @@ const DefaultIcon = new Icon({
 })
 
 const MapView = () => {
-  const position: [number, number] = [43.0731, -89.4012]
+  const position: [number, number] = [44.367417503363825, -91.31645564767399]
 
   return (
     <div className="map-view">
-      <h2>Map View</h2>
       <MapContainer
         center={position}
         zoom={13}
@@ -39,6 +40,11 @@ const MapView = () => {
           </Popup>
         </Marker>
       </MapContainer>
+      {/* <div className="map-controls flex flex--justify-space-between gap-1">
+        <button className="btn btn-primary">Add Trail</button>
+        
+        <button className="btn btn-secondary">Edit Trail</button>
+      </div> */}
     </div>
   )
 }
