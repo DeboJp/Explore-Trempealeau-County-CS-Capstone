@@ -9,6 +9,9 @@ import parks from '../data/locations/PublicParks.json'; // temp. data
 
 
 function AppPageEditor() {
+  // const ACCESS_TOKEN = "eyJraWQiOiI1b1g1VFwvVDlaSkg5VUFHd3E1QWk4K1g1eFFxSWxPVU1remd6NWhvMXBXYz0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI4MWViMTVjMC0xMGExLTcwZWYtY2RmZi1lMDhkNDZmY2U3NGYiLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAudXMtZWFzdC0yLmFtYXpvbmF3cy5jb21cL3VzLWVhc3QtMl83ZUViaVZiVFgiLCJjbGllbnRfaWQiOiI2NHJnaDNtbGUxNzF0a29lZGVwNmJjOXUwdiIsIm9yaWdpbl9qdGkiOiJlODFlNDk0Ny0yMTBhLTRiN2MtOGZlMS03NTU2MzA2MDkwYzQiLCJldmVudF9pZCI6ImE1ZWZkNTk2LTJiMzAtNDEyNy1iOWVhLTIzMzExYTQ2MTJlNyIsInRva2VuX3VzZSI6ImFjY2VzcyIsInNjb3BlIjoiYXdzLmNvZ25pdG8uc2lnbmluLnVzZXIuYWRtaW4iLCJhdXRoX3RpbWUiOjE3NjQzODIxODgsImV4cCI6MTc2NDM4NTc4OCwiaWF0IjoxNzY0MzgyMTg4LCJqdGkiOiI0NDU5NWVjYy05ZDc0LTQ2MmQtODFmZC04YmFlNjcwM2IxODIiLCJ1c2VybmFtZSI6InRlc3R1c2VyIn0.tzEcZQp7Ig_0m4a3RBJs52lj6qK3e9DdK__gzo09DiY4T6W65sJuiwwQ35rAiIF-SlvULq5tBIK_sBz63ESGmJnxCpkj2XKMjODIrNztfgeW8xLS2rGfEWeFotvjiwdPN9tJ61gDKQQY7IR17ftBEcB8pF8zJJ-wGS6kbZaoiNoNYjFO6kL8CovuatuhUEYvQH9AWFv_5uOW93nscmzquXHzSmFIApR1ykm8jxY0WeiO9_wuy06jdXrzUoQz8-5l9sfpIxqTZA2WaQAQjTJMd5BnrZV6mzqW0WQNlL0Jgd6nsQ3-dVCJ3PsdfKa-dyWcqOpmoe_l7KnAXpIPSAHN_w";
+  const API_BASE_URL = "http://localhost:8000";
+
   const [formData, setFormData] = useState({
     title: '',
     type: '',
@@ -76,7 +79,7 @@ function AppPageEditor() {
     </FormArea>
   )); 
   
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     // Function to parse form data before submission
     const dataToSubmit = {
@@ -99,7 +102,36 @@ function AppPageEditor() {
       xml += `</category>`;
     });
     xml += '</page>';
-    console.log(xml);
+    
+    const uuid = crypto.randomUUID();
+    // POST to API
+    console.log('Constructed XML:', xml);
+    await fetch(`${API_BASE_URL}/api/v1/pages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify({
+        'id': 4,
+        'title': dataToSubmit.title,
+        'pageContent': xml,
+      }),
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Page created successfully:', data);
+      // Optionally reset form or provide user feedback here
+    })
+    .catch(error => {
+      console.error('Error creating page:', error);
+      // Optionally provide user feedback here
+    });
   }
 
   return (

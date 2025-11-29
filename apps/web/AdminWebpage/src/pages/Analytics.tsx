@@ -4,9 +4,19 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import 'chartjs-adapter-date-fns'; // Import the adapter
 
+interface AnalyticsData {
+  views: Array<{
+    timestamp: number;
+    event: string;
+    count: number;
+  }>;
+}
+
 function Analytics() {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
   const [currTablePage, setCurrTablePage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
   const chartElement = document.getElementById('viewsPerDayChart') as HTMLCanvasElement;
   if (chartElement) {
     const chartInstance = Chart.getChart(chartElement);
@@ -14,6 +24,36 @@ function Analytics() {
       chartInstance.destroy();
     }
   }
+
+
+  // Fetch analytics data from API
+  useEffect(() => {
+    async function getAnalytics() {
+      try {
+        console.log('Fetching analytics data from API...', API_BASE_URL);
+        const url = new URL(`${API_BASE_URL}/api/v1/analytics/event`);
+        url.searchParams.append('event_type', 'view');
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            // 'Authorization': `Bearer ${yourAccessToken}`,
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log('Fetched analytics data:', data);
+        setAnalyticsData(data.sort((a: any, b: any) => a.timestamp - b.timestamp));
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      }
+    }
+    
+    getAnalytics();
+  }, []); // Run once on mount
 
   useEffect(() => {
     // Placeholder for ChartJS initialization code
@@ -27,13 +67,13 @@ function Analytics() {
         date.setHours(i, 0, 0, 0);
         viewsData.push({x: new Date(date.getTime()), y: rand[i]});
       }
-
+      console.log('Analytics data:', analyticsData);
       new Chart(ctx, {
         type: 'line',
         data: {
            datasets: [{
              label: 'Views',
-              data: viewsData,
+              data: analyticsData ? analyticsData.map(item => ({ x: new Date(item.timestamp * 1000), y: item.count })) : viewsData,
               fill: false,
               borderColor: 'rgb(75, 192, 192)',
               tension: 0.1
@@ -68,7 +108,6 @@ function Analytics() {
     }
 
     return () => {
-      console.log("Unmounting...");
       const chartElement = document.getElementById('viewsPerDayChart') as HTMLCanvasElement;
       if (chartElement) {
         const chartInstance = Chart.getChart(chartElement);
@@ -77,9 +116,10 @@ function Analytics() {
         }
       }
     };
-  }, [0]);
+  }, [analyticsData]);
 
-  function handleTimeframeChange(timeframe: string) {
+
+  async function handleTimeframeChange(timeframe: string) {
     // Placeholder for handling timeframe change and updating the chart
     console.log(`Timeframe changed to: ${timeframe}`);
     // update chart data accordingly
@@ -91,39 +131,57 @@ function Analytics() {
         // Update chart data based on timeframe
         // This is just a placeholder logic
         if(timeframe === 'today') {
-          let rand = Array(24).fill(0).map(() => Math.floor(Math.random() * 20) + 1);
-          let newData = [];
-          for(let i = 0; i < 24; i++){
-            let date = new Date();
-            date.setHours(i, 0, 0, 0);
-            newData.push({x: new Date(date.getTime()), y: rand[i]});
-          }
-          chartInstance.data.datasets[0].data = newData;
-          chartInstance.options.scales!.x!.time!.unit = 'hour';
+          // get timestamp from 00:00 today to now
+          let start = new Date();
+          start.setHours(0, 0, 0, 0);
+          let timestampStart = Math.floor(start.getTime() / 1000);
+          const todayData = await fetch(`${API_BASE_URL}/api/v1/analytics/event?event_type=view&oldest=${timestampStart}`)
+            .then(response => response.json())
+            .then(data => data.map((item: any) => ({ x: new Date(item.timestamp * 1000), y: item.count })).sort((a: any, b: any) => a.x - b.x))
+            .then(data => {
+                console.log('Today data:', data);
+                chartInstance.data.datasets[0].data = data;
+                chartInstance.options.scales!.x!.time!.unit = 'hour';
+                chartInstance.options.scales!.x!.min = start;
+                chartInstance.update();
+                return data;
+              }
+            );
         }
         else if(timeframe === 'lastseven') {
-          let rand = Array(7).fill(0).map(() => Math.floor(Math.random() * 20) + 1);
-          let newData = [];
-          for(let i = 6; i >= 0; i--){
-            let date = new Date();
-            date.setDate(date.getDate() - i);
-            newData.push({x: new Date(date.getTime()), y: rand[6 - i]});
-          }
-          chartInstance.data.datasets[0].data = newData;
-          chartInstance.options.scales!.x!.time!.unit = 'day';
+          let start = new Date();
+          start.setDate(start.getDate() - 7);
+          start.setHours(0, 0, 0, 0);
+          let timestampStart = Math.floor(start.getTime() / 1000);
+          const todayData = await fetch(`${API_BASE_URL}/api/v1/analytics/event?event_type=view&oldest=${timestampStart}`)
+            .then(response => response.json())
+            .then(data => data.map((item: any) => ({ x: new Date(item.timestamp * 1000), y: item.count })).sort((a: any, b: any) => a.x - b.x))
+            .then(data => {
+                chartInstance.data.datasets[0].data = data;
+                chartInstance.options.scales!.x!.time!.unit = 'hour';
+                chartInstance.options.scales!.x!.min = start;
+                chartInstance.update();
+                return data;
+              }
+            );
         }
         else if (timeframe === 'month'){
-          let rand = Array(30).fill(0).map(() => Math.floor(Math.random() * 20) + 1);
-          let today = new Date(Date.now());
-          let newData = [];
-          for(let i = 30; i >= 0; i--){
-            let date = new Date(today);
-            date.setDate(date.getDate() - i);
-            newData.push({x: new Date(date.getTime()), y: rand[30 - i]});
-          }
-          console.log(newData);
-          chartInstance.data.datasets[0].data = newData;
-          chartInstance.options.scales!.x!.time!.unit = 'day';
+          // Last 30 days logic
+          let start = new Date();
+          start.setDate(start.getDate() - 30);
+          start.setHours(0, 0, 0, 0);
+          let timestampStart = Math.floor(start.getTime() / 1000);
+          const monthData = await fetch(`${API_BASE_URL}/api/v1/analytics/event?event_type=view&oldest=${timestampStart}&group=day`)
+            .then(response => response.json())
+            .then(data => data.map((item: any) => ({ x: new Date(item.timestamp * 1000), y: item.count })).sort((a: any, b: any) => a.x - b.x))
+            .then(data => {
+                chartInstance.data.datasets[0].data = data;
+                chartInstance.options.scales!.x!.time!.unit = 'day';
+                chartInstance.options.scales!.x!.min = start;
+                chartInstance.update();
+                return data;
+              }
+            );
         }
         else if (timeframe === 'ytd') {
           // Year to date logic
