@@ -1,0 +1,16 @@
+{"settings": [
+    {
+        "key": "authorizedUsers",
+        "label": "Authorized Users",
+        "value": ["melanger4@wisc.edu", "lexie.boyton@co.trempealeau.wi.gov"]
+    },
+    {
+        "key": "awsInfo",
+        "label": "AWS Information",
+        "value": {
+            "region": "us-east-1",
+            "userPoolId": "us-east-1_ABCDefghi",
+            "userPoolWebClientId": "12345abcde67890fghij12345"
+        }
+    }
+]}
