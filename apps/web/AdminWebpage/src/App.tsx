@@ -12,6 +12,15 @@ import LogIn from './pages/auth/LogIn';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
+  const loggedIn = true; // Placeholder for actual authentication logic
+  
+  if (!loggedIn) {
+    return(
+      <div className="app-container">
+        <LogIn />
+      </div>
+    );
+  }
   return (
     <div className="app-container">
       <BrowserRouter>
