@@ -1,404 +1,769 @@
-import React, { useMemo, useState, useCallback, useRef } from "react";
-import { View, Text, Image, Pressable, StyleSheet, Linking, Platform } from "react-native";
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from "react-native-maps";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import markersSeed from "../lib/markers.json";
+import React, { useEffect, useState, useRef } from "react";
+import {StyleSheet, View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, 
+  Platform, Modal, TouchableWithoutFeedback, Animated, Dimensions, Keyboard} from "react-native";
+import MapView, { Marker, Region, Polyline } from "react-native-maps";
+import markersData from "../lib/markers.json";
 
-// Travel modes we support for deep-links:
-type Mode = "walking" | "driving" | "bicycling";
+// Base URL for your routing backend - ignore this, this is my local wifi IP port forwarding lol
+const API_BASE = "http://xxx.xxx.x.xxx:8000";
 
-// shape for a marker item. 
+// Default map camera region
+const INITIAL_REGION = {
+  latitude: 44.0020,
+  longitude: -91.4346,
+  latitudeDelta: 0.03,
+  longitudeDelta: 0.03,
+};
+
+// Bounding box to restrict map panning
+const TREMP_BOUNDS = {
+  minLat: 43.983886,
+  maxLat: 44.597192,
+  minLng: -91.614620,
+  maxLng: -91.150042,
+};
+const MIN_DELTA = 0.005;
+const MAX_DELTA = 0.3;
+
+
+// Simple shared types
+type Coordinate = { latitude: number; longitude: number };
 type MarkerItem = {
   id: string;
+  name?: string;
   title?: string;
-  lat: number;
-  lng: number;
-  icon?: string;     // e.g., "library.png" (must exist in ICONS)
-  iconUrl?: string;  // remote URL
+  lat?: number;
+  lng?: number;
+  latitude?: number;
+  longitude?: number;
 };
 
-// ---- Local icon registry -----------
-// Map known icon names in your JSON to actual bundled images.
-// Add more as needed (e.g., "park.png": require("../assets/pins/park.png"))
-const ICONS: Record<string, any> = {
-  "library.png": require("../assets/favicon.png"),
-};
+// Static options for UI toggles
+const TRANSPORT_MODES = ["Walk", "ATV", "Snowmobile"] as const;
+const FILTER_OPTIONS = ["Parks", "Trail X", "Trail Y"];
+const MAX_STOPS = 5;
 
-// ---- Deep-link routing --------
-// Opens a route using Google Maps if possible. On iOS, we first try the
-// comgooglemaps:// scheme (app). If not available, we fall back to Google
-// universal URL (opens the app if installed, else browser). Finally, for iOS,
-// we try Apple Maps. This is *free* (no Directions API billing).
-async function openRoute(
-  points: { lat: number; lng: number }[],
-  mode: Mode,
-  loop: boolean
-) {
-  if (points.length < 2) return;
+// Color + opacity tokens
+const PRIMARY_BLUE = "#266AB1";
+const LIGHT_BLUE = "#9EC7F0";
+const OPAQUE_WHITE = "rgba(255,255,255,0.9)";
+const OPAQUE_WHITE_STRONG = "rgba(255,255,255,0.95)";
 
-  // Start is the first selected point; destination is either last or start (loop)
-  const start = points[0];
-  const dest = loop ? start : points[points.length - 1];
-
-  // Waypoints are all middle points (Google supports up to ~25 total incl. start/end)
-  const mids = points.slice(1, loop ? points.length : points.length - 1);
-
-  // iOS: Prefer Google Maps app via comgooglemaps://
-  if (Platform.OS === "ios") {
-    const scheme = "comgooglemaps://";
-    if (await Linking.canOpenURL(scheme)) {
-      // Build Google scheme with waypoints + mode
-      const p = new URLSearchParams({
-        saddr: `${start.lat},${start.lng}`,
-        daddr: `${dest.lat},${dest.lng}`,
-        directionsmode: mode, // "walking" | "driving" | "bicycling"
-      });
-      if (mids.length) p.append("waypoints", mids.map(p => `${p.lat},${p.lng}`).join("|"));
-
-      const url = `${scheme}?${p.toString()}`;
-      if (await Linking.canOpenURL(url)) return Linking.openURL(url);
-    }
-  }
-
-  // Universal Google URL -> opens Google Maps app if present, otherwise browser
-  {
-    const base = "https://www.google.com/maps/dir/?api=1";
-    const p = new URLSearchParams({
-      origin: `${start.lat},${start.lng}`,
-      destination: `${dest.lat},${dest.lng}`,
-      travelmode: mode,
-    });
-    if (mids.length) p.append("waypoints", mids.map(p => `${p.lat},${p.lng}`).join("|"));
-
-    const url = `${base}&${p.toString()}`;
-    if (await Linking.canOpenURL(url)) return Linking.openURL(url);
-  }
-
-  // iOS fallback: Apple Maps (dirflg: d=driving, w=walking, b=biking-best-effort)
-  if (Platform.OS === "ios") {
-    const flag = mode === "driving" ? "d" : mode === "walking" ? "w" : "b";
-    const apple = `maps://?saddr=${start.lat},${start.lng}&daddr=${dest.lat},${dest.lng}&dirflg=${flag}`;
-    if (await Linking.canOpenURL(apple)) return Linking.openURL(apple);
-  }
-
-  // (4) Last resort: plain Google directions in browser
-  return Linking.openURL(
-    `https://www.google.com/maps/dir/${start.lat},${start.lng}/${dest.lat},${dest.lng}`
-  );
-}
-
-// ---- Custom Pin ----
-// A minimal custom pin that avoids layout growth. We call onReady on image load
-// so the native marker snapshot can be frozen (see tracksViewChanges below).
-function Pin({
-  item,
-  selected,
-  onReady,
-}: {
-  item: MarkerItem;
-  selected: boolean;
-  onReady: () => void;
-}) {
-  const hasLocal = item.icon && ICONS[item.icon];
-  if (!hasLocal && !item.iconUrl) return null;
-
-  // Prefer bundled image if `icon` matches ICONS; otherwise remote uri
-  const src = hasLocal ? ICONS[item.icon as string] : { uri: item.iconUrl! };
-
-  return (
-    <View style={{ alignItems: "center" }}>
-      <Image
-        source={src}
-        style={{ width: 36, height: 36, borderRadius: 8 }}
-        onLoad={onReady} // signal: snapshot can now be frozen (tracksViewChanges=false)
-      />
-      {/* Use our own label (avoid MapKit/Google callout nudging the marker) */}
-      {!!item.title && <Text style={styles.pinLabel}>{item.title}</Text>}
-      {/* Selection dot doesn't change layout height (small + below image) */}
-      {selected && <View style={styles.dot} />}
-    </View>
-  );
-}
+// How far the layers sheet starts off-screen
+const SHEET_SLIDE_DISTANCE = Dimensions.get("window").height * 0.5;
 
 export default function MapScreen() {
-  const insets = useSafeAreaInsets();
+  //map regions
+  const [mapRegion, setMapRegion] = useState(INITIAL_REGION);
 
-  // Your bottom tab is ~90 height + 10 margin → reserve ~110 + safe area.
-  // This keeps floating UI above the tab bar on all devices.
-  const TAB_OFFSET = 110 + insets.bottom;
+  // Local POI markers from JSON
+  const [markers, setMarkers] = useState<MarkerItem[]>([]);
+  // Raw start/end (and optional) stops placed on map via tap/marker
+  const [stops, setStops] = useState<Coordinate[]>([]);
+  // Route polyline from OSRM
+  const [routeCoords, setRouteCoords] = useState<Coordinate[]>([]);
+  // Short summary of the current route
+  const [routeInfo, setRouteInfo] = useState<{
+    distanceKm: string;
+    durationMin: string;
+  } | null>(null);
 
-  // Predefined markers (from JSON) + new user-added ones
-  const [markers, setMarkers] = useState<MarkerItem[]>(
-    (markersSeed as MarkerItem[]).slice()
-  );
+  // Map appearance + high-level mode
+  const [mapType, setMapType] =
+    useState<"standard" | "hybrid" | "satellite">("standard");
+  const [transportMode, setTransportMode] = useState<string>("Walk");
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
 
-  // Path selection state: order = the order user taps markers
-  const [pathIds, setPathIds] = useState<string[]>([]);
+  // Inputs typed into the planner (Start, [Stops], Destination)
+  const [searchInputs, setSearchInputs] = useState<string[]>(["", ""]);
 
-  // Travel mode + whether to return to start (close loop)
-  const [mode, setMode] = useState<Mode>("walking");
-  const [closeLoop, setCloseLoop] = useState(false);
+  // UI state for bottom sheet + keyboard
+  const [layersVisible, setLayersVisible] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
-  // true only until first image load (per marker), and briefly on selection change.
-  const tracksRef = useRef<Record<string, boolean>>({});
-  const markDirty = (id: string) => {
-    tracksRef.current[id] = true; // allow one re snapshot frame
-    requestAnimationFrame(() => {
-      tracksRef.current[id] = false; // then freeze again
+  // Animated offset for layers drawer
+  const sheetTranslateY = useRef(
+    new Animated.Value(SHEET_SLIDE_DISTANCE)
+  ).current;
+
+  // Load marker data once from local JSON
+  useEffect(() => {
+    setMarkers(markersData as any);
+  }, []);
+
+  // Listen for keyboard show/hide to adjust bottom padding
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvt, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardVisible(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const clampRegion = (region: Region): Region => {
+    let { latitude, longitude, latitudeDelta, longitudeDelta } = region;
+
+    latitude = Math.min(TREMP_BOUNDS.maxLat, Math.max(TREMP_BOUNDS.minLat, latitude));
+    longitude = Math.min(TREMP_BOUNDS.maxLng, Math.max(TREMP_BOUNDS.minLng, longitude));
+
+    latitudeDelta = Math.min(MAX_DELTA, Math.max(MIN_DELTA, latitudeDelta));
+    longitudeDelta = Math.min(MAX_DELTA, Math.max(MIN_DELTA, longitudeDelta));
+
+    return { latitude, longitude, latitudeDelta, longitudeDelta };
+  };
+
+  // Call routing backend and update polyline + summary
+  const fetchRoute = async (origin: Coordinate, destination: Coordinate) => {
+    try {
+      const res = await fetch(`${API_BASE}/route`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ origin, destination }),
+      });
+
+      const data = await res.json();
+      const coords: Coordinate[] = data.coords || [];
+      setRouteCoords(coords);
+
+      if (data.distance_m != null && data.duration_s != null) {
+        setRouteInfo({
+          distanceKm: (data.distance_m / 1000).toFixed(2),
+          durationMin: (data.duration_s / 60).toFixed(1),
+        });
+      } else {
+        setRouteInfo(null);
+      }
+    } catch (err) {
+      console.log("Route fetch error:", err);
+      setRouteCoords([]);
+      setRouteInfo(null);
+    }
+  };
+
+  // Long press on map to set start/end in two steps
+  const onMapLongPress = (event: any) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    const newPoint = { latitude, longitude };
+
+    setStops((prev) => {
+      if (prev.length === 0) {
+        setRouteCoords([]);
+        setRouteInfo(null);
+        return [newPoint];
+      }
+      if (prev.length === 1) {
+        const origin = prev[0];
+        fetchRoute(origin, newPoint);
+        return [origin, newPoint];
+      }
+      setRouteCoords([]);
+      setRouteInfo(null);
+      return [newPoint];
     });
   };
 
-  // Fast iditem lookups (stable across renders as markers change)
-  const byId = useMemo(() => new Map(markers.map(m => [m.id, m])), [markers]);
+  // Reset all transient route/UI state
+  const handleClear = () => {
+    setStops([]);
+    setRouteCoords([]);
+    setRouteInfo(null);
+    setSearchInputs(["", ""]);
+    setActiveFilters([]);
+    setTransportMode("Walk");
+  };
 
-  // Initial map region:
-  // Open on first predefined marker if exists; else fallback to SF.
-  const initialRegion = useMemo(() => {
-    const m0 = markers[0];
-    return {
-      latitude: m0?.lat ?? 37.7749,
-      longitude: m0?.lng ?? -122.4194,
-      latitudeDelta: 0.06,
-      longitudeDelta: 0.06,
-    };
-  }, [markers]);
+  // Tap on a marker to use it as start/end in same two-step pattern
+  const onMarkerPress = (m: MarkerItem) => {
+    const lat = m.latitude ?? m.lat;
+    const lng = m.longitude ?? m.lng;
+    if (lat == null || lng == null) return;
 
-  // Long-press to drop a new marker at pressed coordinates
-  const onLongPressAdd = useCallback((e: any) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
-    const id = `tmp-${Date.now()}`;
-    setMarkers(prev => [
-      ...prev,
-      { id, title: `Point ${prev.length + 1}`, lat: latitude, lng: longitude },
-    ]);
-    tracksRef.current[id] = true; // new custom pin (if any) gets one snapshot
-  }, []);
+    const point = { latitude: lat, longitude: lng };
 
-  // Toggle a marker in/out of the current path, preserving order
-  const togglePath = useCallback((id: string) => {
-    setPathIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
-    markDirty(id);
-  }, []);
+    setStops((prev) => {
+      if (prev.length === 0) {
+        setRouteCoords([]);
+        setRouteInfo(null);
+        return [point];
+      }
+      if (prev.length === 1) {
+        const origin = prev[0];
+        fetchRoute(origin, point);
+        return [origin, point];
+      }
+      setRouteCoords([]);
+      setRouteInfo(null);
+      return [point];
+    });
+  };
 
-  // Coordinates for drawing the in-app path (straight segments)
-  const lineCoords = useMemo(() => {
-    const base = pathIds
-      .map(id => byId.get(id))
-      .filter(Boolean)
-      .map(m => ({ latitude: (m as MarkerItem).lat, longitude: (m as MarkerItem).lng }));
-    return closeLoop && base.length >= 2 ? [...base, base[0]] : base;
-  }, [pathIds, byId, closeLoop]);
+  // Update a single search field (Start / Stop / Destination)
+  const handleChangeSearchInput = (index: number, text: string) => {
+    setSearchInputs((prev) => {
+      const next = [...prev];
+      next[index] = text;
+      return next;
+    });
+  };
 
-  // Coords for deep-link (lat/lng only, in selected order)
-  const selectedPts = useMemo(
-    () =>
-      pathIds
-        .map(id => byId.get(id))
-        .filter(Boolean)
-        .map(m => ({ lat: (m as MarkerItem).lat, lng: (m as MarkerItem).lng })),
-    [pathIds, byId]
-  );
+  // Insert a new "Stop" field before the Destination
+  const handleAddStop = () => {
+    setSearchInputs((prev) => {
+      if (prev.length >= MAX_STOPS) return prev;
+      const next = [...prev];
+      next.splice(prev.length - 1, 0, "");
+      return next;
+    });
+  };
+
+  // For now, just log planner state (future hook: geocode + fetchRoute)
+  const handleSearchStart = () => {
+    console.log("Plan route via search:", {
+      waypoints: searchInputs,
+      mode: transportMode,
+      filters: activeFilters,
+      mapType,
+    });
+  };
+
+  // Toggle “map details” filter badges (parks, specific trails, etc.)
+  const toggleFilter = (name: string) => {
+    setActiveFilters((prev) =>
+      prev.includes(name) ? prev.filter((f) => f !== name) : [...prev, name]
+    );
+  };
+
+  // Open layers drawer and slide it into view
+  const openLayers = () => {
+    setLayersVisible(true);
+    sheetTranslateY.setValue(SHEET_SLIDE_DISTANCE);
+    Animated.timing(sheetTranslateY, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // Close layers drawer and slide it off-screen
+  const closeLayers = () => {
+    Animated.timing(sheetTranslateY, {
+      toValue: SHEET_SLIDE_DISTANCE,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setLayersVisible(false);
+    });
+  };
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Core map. Default provider = Apple Maps (iOS), Google Maps (Android). */}
+    <View style={styles.container}>
       <MapView
-        style={{ flex: 1 }}
-        provider={PROVIDER_DEFAULT}
-        initialRegion={initialRegion}
-        showsUserLocation
-        showsCompass
-        onLongPress={onLongPressAdd}
+        style={StyleSheet.absoluteFill}
+        mapType={mapType}
+        region={mapRegion}
+        onRegionChangeComplete={(r) => setMapRegion(clampRegion(r))}
+        onLongPress={onMapLongPress}
       >
-        {markers.map(m => {
-          const selected = pathIds.includes(m.id);
-          const hasCustom = !!(m.icon || m.iconUrl);
+        {stops.map((p, idx) => (
+          <Marker
+            key={`stop-${idx}`}
+            coordinate={p}
+            title={idx === 0 ? "Start" : "End"}
+            pinColor={idx === 0 ? "green" : "red"}
+          />
+        ))}
 
-          // For custom pins start as true until first img load calls onReady
-          if (tracksRef.current[m.id] === undefined) tracksRef.current[m.id] = !!hasCustom;
+        {markers.map((m, i) => {
+          const lat = m.latitude ?? m.lat;
+          const lng = m.longitude ?? m.lng;
+          if (lat == null || lng == null) return null;
 
           return (
             <Marker
-              key={m.id}
-              coordinate={{ latitude: m.lat, longitude: m.lng }}
-              // Avoid using native title (native callout can nudge/auto-focus).
-              onPress={() => togglePath(m.id)}
-              // If no custom view, we use native pin color to indicate selection.
-              pinColor={hasCustom ? undefined : selected ? "#2563eb" : "#ef4444"}
-              // Critical: keep true only briefly to snapshot updated custom view.
-              tracksViewChanges={tracksRef.current[m.id]}
-              // Stable visual anchor: bottom center, so label/dot won’t shift the pin.
-              anchor={{ x: 0.5, y: 1 }}
-              calloutAnchor={{ x: 0.5, y: 0 }}
-              centerOffset={{ x: 0, y: -18 }} // slight upward nudge for custom content
-            >
-              {hasCustom ? (
-                <Pin
-                  item={m}
-                  selected={selected}
-                  onReady={() => (tracksRef.current[m.id] = false)} // freeze after first paint
-                />
-              ) : null}
-            </Marker>
+              key={m.id ?? i}
+              coordinate={{ latitude: lat, longitude: lng }}
+              title={m.title || m.name}
+              onPress={() => onMarkerPress(m)}
+            />
           );
         })}
 
-        {/* In-app path (straight segments) */}
-        {lineCoords.length >= 2 && (
-          <Polyline coordinates={lineCoords} strokeWidth={5} strokeColor="#2563eb" />
+        {routeCoords.length > 0 && (
+          <Polyline
+            coordinates={routeCoords}
+            strokeWidth={4}
+            strokeColor={PRIMARY_BLUE}
+          />
         )}
       </MapView>
 
-      {/* Basic toogle options (mode switch, loop toggle, clear, counter) */}
-      <View style={[styles.topBar, { top: -40 + insets.top }]}>
-        <View style={styles.switch}>
-          {(["walking", "driving", "bicycling"] as Mode[]).map(m => (
-            <Pressable
-              key={m}
-              onPress={() => setMode(m)}
-              style={[styles.swBtn, mode === m && styles.swBtnActive]}
-            >
-              <Text style={[styles.swTxt, mode === m && styles.swTxtActive]}>
-                {m === "walking" ? "Walk" : m === "driving" ? "Drive" : "Bike"}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={{ flex: 1 }} />
-
-        <Pressable
-          style={[styles.chip, closeLoop && styles.chipActive]}
-          onPress={() => setCloseLoop(v => !v)}
+      <KeyboardAvoidingView
+        style={styles.bottomAvoider}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+      >
+        <View
+          style={[
+            styles.bottomContainer,
+            { paddingBottom: keyboardVisible ? 30 : 110 },
+          ]}
         >
-          <Text style={[styles.chipTxt, closeLoop && styles.chipTxtActive]}>Close loop</Text>
-        </Pressable>
+          {/* Top bar over map */}
+          <View style={styles.optionsBar}>
+            <TouchableOpacity style={styles.layersButton} onPress={openLayers}>
+              <Text style={styles.layersButtonText}>Layers</Text>
+            </TouchableOpacity>
 
-        <Pressable style={styles.chip} onPress={() => setPathIds([])}>
-          <Text style={styles.chipTxt}>Clear</Text>
-        </Pressable>
+            <View style={styles.transportRow}>
+              {TRANSPORT_MODES.map((mode) => {
+                const active = transportMode === mode;
+                return (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[styles.transportChip, active && styles.transportChipActive]}
+                    onPress={() => setTransportMode(mode)}
+                  >
+                    <Text
+                      style={[
+                        styles.transportText,
+                        active && styles.transportTextActive,
+                      ]}
+                    >
+                      {mode}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-        <View style={styles.badge}>
-          <Text style={styles.badgeTxt}>{pathIds.length}</Text>
+            {routeInfo && (
+              <View style={styles.routeInfoPill}>
+                <Text style={styles.routeInfoText}>{routeInfo.distanceKm} km</Text>
+                <Text style={styles.routeInfoDot}>•</Text>
+                <Text style={styles.routeInfoText}>{routeInfo.durationMin} min</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Planner card */}
+          <View style={styles.searchCard}>
+            <View style={styles.searchHeaderRow}>
+              <Text style={styles.searchTitle}>Plan route</Text>
+              <TouchableOpacity onPress={handleClear}>
+                <Text style={styles.clearText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.routeFieldsRow}>
+              <View style={styles.fieldsColumn}>
+                {searchInputs.map((value, idx) => {
+                  const isFirst = idx === 0;
+                  const isLast = idx === searchInputs.length - 1;
+                  const label = isFirst
+                    ? "Start"
+                    : isLast
+                    ? "Destination"
+                    : `Stop ${idx}`;
+                  const placeholder = isFirst
+                    ? "Search starting point"
+                    : isLast
+                    ? "Search destination"
+                    : "Search stop";
+
+                  return (
+                    <View key={idx} style={styles.fieldBlock}>
+                      <Text style={styles.fieldLabel}>{label}</Text>
+                      <TextInput
+                        style={styles.searchInput}
+                        placeholder={placeholder}
+                        placeholderTextColor="#000000"
+                        value={value}
+                        onChangeText={(text) =>
+                          handleChangeSearchInput(idx, text)
+                        }
+                        returnKeyType="next"
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+
+              {searchInputs.length < MAX_STOPS && (
+                <View style={styles.addStopColumn}>
+                  <TouchableOpacity
+                    style={styles.addStopFab}
+                    onPress={handleAddStop}
+                  >
+                    <Text style={styles.addStopFabText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.searchFooterRow}>
+              <TouchableOpacity
+                style={styles.startButton}
+                onPress={handleSearchStart}
+              >
+                <Text style={styles.startButtonText}>Start</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
-      {/* Hint text — placed above the bottom CTA and tab bar */}
-      <View style={[styles.hintCard, { bottom: TAB_OFFSET + 26 }]}>
-        <Text style={styles.hintText}>
-          Long-press to add new markers. Tap in order. Toggle “Close loop” to return to start.
-        </Text>
-      </View>
+      {/* Layers sheet */}
+      <Modal
+        transparent
+        visible={layersVisible}
+        animationType="none"
+        onRequestClose={closeLayers}
+      >
+        <TouchableWithoutFeedback onPress={closeLayers}>
+          <View style={styles.modalBackdrop}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <Animated.View
+                style={[
+                  styles.layersSheet,
+                  { transform: [{ translateY: sheetTranslateY }] },
+                ]}
+              >
+                <View style={styles.layersHeaderRow}>
+                  <Text style={styles.layersTitle}>Map type</Text>
+                  <TouchableOpacity onPress={closeLayers}>
+                    <Text style={styles.layersCloseText}>×</Text>
+                  </TouchableOpacity>
+                </View>
 
-      {/* Bottom CTA — sits above your tab bar using TAB_OFFSET */}
-      <View style={[styles.bottomBar, { bottom: TAB_OFFSET - 30}]}>
-        <Pressable
-          style={[styles.cta, selectedPts.length < 2 && styles.ctaDisabled]}
-          onPress={() => openRoute(selectedPts, mode, closeLoop)}
-          disabled={selectedPts.length < 2}
-        >
-          <Text style={styles.ctaTxt}>
-            Open in Google Maps
-            {selectedPts.length >= 2 ? ` (${selectedPts.length}${closeLoop ? " • loop" : ""})` : ""}
-          </Text>
-        </Pressable>
-      </View>
+                <View style={styles.tileRow}>
+                  {(["standard", "satellite", "hybrid"] as const).map((t) => {
+                    const active = mapType === t;
+                    return (
+                      <TouchableOpacity
+                        key={t}
+                        style={[styles.tileButton, active && styles.tileButtonActive]}
+                        onPress={() => setMapType(t)}
+                      >
+                        <View style={styles.tileIcon}>
+                          <View style={styles.tileIconInner} />
+                        </View>
+                        <Text style={styles.tileLabel}>
+                          {t === "standard"
+                            ? "Default"
+                            : t === "satellite"
+                            ? "Satellite"
+                            : "Hybrid"}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.layersSectionTitle}>Map details</Text>
+                <View style={styles.tileGrid}>
+                  {FILTER_OPTIONS.map((f) => {
+                    const active = activeFilters.includes(f);
+                    return (
+                      <TouchableOpacity
+                        key={f}
+                        style={[
+                          styles.tileButtonSmall,
+                          active && styles.tileButtonActive,
+                        ]}
+                        onPress={() => toggleFilter(f)}
+                      >
+                        <View style={styles.tileIcon}>
+                          <View style={styles.tileIconInner} />
+                        </View>
+                        <Text style={styles.tileLabelSmall}>{f}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </Animated.View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 }
 
-const shadow = {
-  shadowColor: "#000",
-  shadowOpacity: 0.12,
-  shadowRadius: 10,
-  shadowOffset: { width: 0, height: 4 },
-  elevation: 6,
-};
-
 const styles = StyleSheet.create({
-  topBar: {
+  container: { flex: 1 },
+
+  bottomAvoider: {
     position: "absolute",
-    left: 12,
-    right: 12,
-    padding: 10,
-    backgroundColor: "white",
-    borderRadius: 16,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  bottomContainer: {
+    paddingHorizontal: 16,
+  },
+
+  // Top options over map
+  optionsBar: {
     flexDirection: "row",
     alignItems: "center",
-    ...shadow,
+    marginBottom: 10,
   },
-  switch: {
+  layersButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: PRIMARY_BLUE,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  layersButtonText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  transportRow: {
     flexDirection: "row",
-    backgroundColor: "#f1f5f9",
-    borderRadius: 12,
-    padding: 4,
+    marginLeft: 10,
+    flexShrink: 1,
   },
-  swBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  swBtnActive: { backgroundColor: "white" },
-  swTxt: { color: "#475569", fontWeight: "600" },
-  swTxtActive: { color: "#111827" },
-
-  chip: {
-    backgroundColor: "#f8fafc",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  transportChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: PRIMARY_BLUE,
+    marginRight: 8,
+    backgroundColor: OPAQUE_WHITE,
+  },
+  transportChipActive: {
+    backgroundColor: PRIMARY_BLUE,
+  },
+  transportText: {
+    fontSize: 11,
+    color: "#000000",
+    fontWeight: "500",
+  },
+  transportTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  routeInfoPill: {
+    marginLeft: "auto",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: PRIMARY_BLUE,
+    backgroundColor: LIGHT_BLUE,
+  },
+  routeInfoText: {
+    fontSize: 11,
+    color: "#000000",
+    fontWeight: "600",
+  },
+  routeInfoDot: {
+    marginHorizontal: 4,
+    fontSize: 11,
+    color: "#000000",
+  },
+
+  // Planner card
+  searchCard: {
+    backgroundColor: OPAQUE_WHITE_STRONG,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: LIGHT_BLUE,
+  },
+  searchHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  searchTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#000000",
+  },
+  clearText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#000000",
+  },
+
+  routeFieldsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  fieldsColumn: {
+    flex: 1,
     marginRight: 8,
   },
-  chipActive: { backgroundColor: "#111827", borderColor: "#111827" },
-  chipTxt: { color: "#111827", fontWeight: "600" },
-  chipTxtActive: { color: "white" },
+  fieldBlock: {
+    marginBottom: 8,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#000000",
+    marginBottom: 2,
+  },
+  searchInput: {
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    backgroundColor: OPAQUE_WHITE,
+    fontSize: 14,
+    color: "#000000",
+    borderWidth: 1,
+    borderColor: LIGHT_BLUE,
+  },
 
-  badge: {
-    minWidth: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#111827",
+  addStopColumn: {
+    width: 40,
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeTxt: { color: "white", fontWeight: "700" },
-
-  // Hint card; sits above the CTA and well above the tab bar
-  hintCard: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 10,
+  addStopFab: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: PRIMARY_BLUE,
+    justifyContent: "center",
     alignItems: "center",
-    ...shadow,
   },
-  hintText: { color: "#334155", textAlign: "center" },
+  addStopFabText: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 22,
+  },
 
-  bottomBar: { position: "absolute", left: 12, right: 12 },
-  cta: {
-    backgroundColor: "#111827",
+  searchFooterRow: {
+    marginTop: 12,
+    alignItems: "center",
+  },
+  startButton: {
+    width: "100%",
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: PRIMARY_BLUE,
+    alignSelf: "center",
+  },
+  startButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+
+  // Layers modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "flex-end",
+  },
+  layersSheet: {
+    backgroundColor: "#202020",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 20,
+    minHeight: "45%",
+    maxHeight: "60%",
+  },
+  layersHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  layersTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  layersCloseText: {
+    fontSize: 22,
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  layersSectionTitle: {
+    marginTop: 16,
+    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+
+  tileRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  tileGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  tileButton: {
+    width: "30%",
+    aspectRatio: 1,
     borderRadius: 14,
-    paddingVertical: 14,
+    backgroundColor: "#2A2A2A",
+    borderWidth: 1,
+    borderColor: "transparent",
+    justifyContent: "center",
     alignItems: "center",
-    ...shadow,
   },
-  ctaDisabled: { opacity: 0.5 },
-  ctaTxt: { color: "white", fontWeight: "700" },
-
-  pinLabel: {
-    marginTop: 4,
-    fontSize: 11,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    backgroundColor: "white",
+  tileButtonSmall: {
+    width: "30%",
+    aspectRatio: 1,
+    borderRadius: 14,
+    backgroundColor: "#2A2A2A",
+    borderWidth: 1,
+    borderColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: "5%",
+    marginBottom: 10,
+  },
+  tileButtonActive: {
+    borderColor: LIGHT_BLUE,
+    backgroundColor: "#333333",
+  },
+  tileIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#000000",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  tileIconInner: {
+    width: 26,
+    height: 26,
     borderRadius: 6,
-    ...shadow,
+    backgroundColor: LIGHT_BLUE,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#2563eb",
-    marginTop: 4,
+  tileLabel: {
+    fontSize: 12,
+    color: LIGHT_BLUE,
+    textAlign: "center",
+  },
+  tileLabelSmall: {
+    fontSize: 11,
+    color: LIGHT_BLUE,
+    textAlign: "center",
   },
 });
