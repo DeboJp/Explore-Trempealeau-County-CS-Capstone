@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef } from "react";
 import {StyleSheet, View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, 
   Platform, Modal, TouchableWithoutFeedback, Animated, Dimensions, Keyboard} from "react-native";
-import MapView, { Marker, Region, Polyline } from "react-native-maps";
+import MapView, { Marker, Region, Polyline, Polygon } from "react-native-maps";
 import markersData from "../lib/markers.json";
 import places from "../lib/searchLocIndex.json";
 
 // Base URL for your routing backend - ignore this, this is my local wifi IP port forwarding lol
-const API_BASE = "http://xxx.xxx.x.xxx:8000";
+const API_BASE = "http://10.140.59.162:8000";
 
 // Default map camera region
 const INITIAL_REGION = {
@@ -45,9 +45,26 @@ type Place = {
   tags?: Record<string, string>;
 };
 
+//locations:
+const ATV_TRAILS = require("../lib/geojson/ATVTrails.json");
+const TRAILS = require("../lib/geojson/Trails.json");
+const SNOWMOBILE_TRAILS = require("../lib/geojson/SnowmobileTrails.json");
+const WATERWAY = require("../lib/geojson/Waterway.json");
+const PUBLIC_PARKS = require("../lib/geojson/PublicParks.json");
+const WILDLIFE_AREAS = require("../lib/geojson/WildlifeAreas.json");
+const WATER_TRAIL = require("../lib/geojson/WaterTrail.json");
+
 // Static options for UI toggles
 const TRANSPORT_MODES = ["Walk", "ATV", "Snowmobile"] as const;
-const FILTER_OPTIONS = ["Parks", "Trail X", "Trail Y"];
+// const FILTER_OPTIONS = ["Parks", "Trail X", "Trail Y"];
+const FILTER_OPTIONS = [
+  "Public Parks",
+  "Wildlife Areas",
+  "ATV Trails",
+  "Snowmobile Trails",
+  "Multi-use Trails",
+  "Water Trail Access",
+];
 const MAX_STOPS = 5;
 
 // Polyline stroke style type definitions
@@ -162,6 +179,13 @@ export default function MapScreen() {
         return { strokeColor: "#2c92ffff", strokeWidth: 4 };
     }
   };
+
+  // Convert [lng, lat] array to Coordinate object
+  const toLatLng = (coord: [number, number]): Coordinate => ({
+    latitude: coord[1],
+    longitude: coord[0],
+  });
+
 
   // Zoom/pan map to show entire route
   const fitRouteOnMap = (coords: Coordinate[]) => {
@@ -431,6 +455,162 @@ export default function MapScreen() {
             {...getStrokeStyle()}
           />
         )}
+
+        {/* PUBLIC PARKS – filled green polygons */}
+        {activeFilters.includes("Public Parks") &&
+          (PUBLIC_PARKS as any).features?.map((f: any, idx: number) => {
+            if (!f.geometry) return null;
+            const geom = f.geometry;
+            if (geom.type !== "Polygon" && geom.type !== "MultiPolygon") return null;
+
+            const coordsRaw =
+              geom.type === "Polygon"
+                ? geom.coordinates[0]          // outer ring
+                : geom.coordinates[0][0];      // outer ring of first polygon
+
+            const coords = coordsRaw.map(toLatLng);
+
+            return (
+              <Polygon
+                key={`park-${idx}`}
+                coordinates={coords}
+                strokeColor="#27ae60"
+                strokeWidth={2}
+                fillColor="rgba(39,174,96,0.35)"
+              />
+            );
+          })}
+
+        {/* WILDLIFE AREAS – purple polygons */}
+        {activeFilters.includes("Wildlife Areas") &&
+          (WILDLIFE_AREAS as any).features?.map((f: any, idx: number) => {
+            if (!f.geometry) return null;
+            const geom = f.geometry;
+            if (geom.type !== "Polygon" && geom.type !== "MultiPolygon") return null;
+
+            const coordsRaw =
+              geom.type === "Polygon"
+                ? geom.coordinates[0]
+                : geom.coordinates[0][0];
+
+            const coords = coordsRaw.map(toLatLng);
+
+            return (
+              <Polygon
+                key={`wildlife-${idx}`}
+                coordinates={coords}
+                strokeColor="#8e44ad"
+                strokeWidth={2}
+                fillColor="rgba(142,68,173,0.30)"
+              />
+            );
+          })}
+
+        {/* ATV TRAILS – red lines */}
+        {activeFilters.includes("ATV Trails") &&
+          (ATV_TRAILS as any).features?.map((f: any, idx: number) => {
+            if (!f.geometry) return null;
+            const geom = f.geometry;
+            if (geom.type !== "LineString" && geom.type !== "MultiLineString") return null;
+
+            const segments =
+              geom.type === "LineString" ? [geom.coordinates] : geom.coordinates;
+
+            return segments.map((seg: any, sIdx: number) => (
+              <Polyline
+                key={`atv-${idx}-${sIdx}`}
+                coordinates={seg.map(toLatLng)}
+                strokeColor="#e74c3c"
+                strokeWidth={3}
+              />
+            ));
+          })}
+
+        {/* SNOWMOBILE TRAILS – cyan lines */}
+        {activeFilters.includes("Snowmobile Trails") &&
+          (SNOWMOBILE_TRAILS as any).features?.map((f: any, idx: number) => {
+            if (!f.geometry) return null;
+            const geom = f.geometry;
+            if (geom.type !== "LineString" && geom.type !== "MultiLineString") return null;
+
+            const segments =
+              geom.type === "LineString" ? [geom.coordinates] : geom.coordinates;
+
+            return segments.map((seg: any, sIdx: number) => (
+              <Polyline
+                key={`snow-${idx}-${sIdx}`}
+                coordinates={seg.map(toLatLng)}
+                strokeColor="#00d1ff"
+                strokeWidth={3}
+              />
+            ));
+          })}
+
+        {/* MULTI-USE TRAILS – orange lines */}
+        {activeFilters.includes("Multi-use Trails") &&
+          (TRAILS as any).features?.map((f: any, idx: number) => {
+            if (!f.geometry) return null;
+            const geom = f.geometry;
+            if (geom.type !== "LineString" && geom.type !== "MultiLineString") return null;
+
+            const segments =
+              geom.type === "LineString" ? [geom.coordinates] : geom.coordinates;
+
+            return segments.map((seg: any, sIdx: number) => (
+              <Polyline
+                key={`trail-${idx}-${sIdx}`}
+                coordinates={seg.map(toLatLng)}
+                strokeColor="#f39c12"
+                strokeWidth={3}
+              />
+            ));
+          })}
+
+        {/* WATERWAY – blue lines */}
+        {activeFilters.includes("Water Trail Access") &&
+          (WATERWAY as any).features?.map((f: any, idx: number) => {
+            if (!f.geometry) return null;
+            const geom = f.geometry;
+            if (geom.type !== "LineString" && geom.type !== "MultiLineString") return null;
+
+            const segments =
+              geom.type === "LineString" ? [geom.coordinates] : geom.coordinates;
+
+            return segments.map((seg: any, sIdx: number) => (
+              <Polyline
+                key={`waterway-${idx}-${sIdx}`}
+                coordinates={seg.map(toLatLng)}
+                strokeColor="#2980b9"
+                strokeWidth={3}
+              />
+            ));
+          })}
+
+        {/* WATER TRAIL – point markers (like your example) */}
+        {activeFilters.includes("Water Trail Access") &&
+          (WATER_TRAIL as any).features?.map((f: any, idx: number) => {
+            if (!f.geometry) return null;
+            const geom = f.geometry;
+            if (geom.type !== "Point") return null;
+
+            const coord = toLatLng(geom.coordinates);
+            const label =
+              f.properties?.Label_Prop ||
+              f.properties?.NAME ||
+              f.properties?.TYPE2 ||
+              f.properties?.TYPE ||
+              "Water access";
+
+            return (
+              <Marker
+                key={`watertrail-${idx}`}
+                coordinate={coord}
+                title={label}
+                pinColor="#2980b9"
+              />
+            );
+          })}
+
       </MapView>
 
       <KeyboardAvoidingView
@@ -947,3 +1127,4 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
+
