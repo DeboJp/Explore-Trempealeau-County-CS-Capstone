@@ -5,7 +5,7 @@ import MapView, { Marker, Region, Polyline } from "react-native-maps";
 import markersData from "../lib/markers.json";
 
 // Base URL for your routing backend - ignore this, this is my local wifi IP port forwarding lol
-const API_BASE = "http://192.168.1.229:8000";
+const API_BASE = "http://xxx.xxx.x.xxx:8000";
 
 // Default map camera region
 const INITIAL_REGION = {
