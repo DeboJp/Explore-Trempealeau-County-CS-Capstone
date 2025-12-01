@@ -11,7 +11,6 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 def get_repository() -> AnalyticsRepository:
     """Dependency to get repository instance"""
-    print("Getting Analytics Repository")
     table = get_dynamodb_table("Analytics")
     return AnalyticsRepository(table)
 
@@ -66,7 +65,6 @@ async def log_event(
     event: str = Query(..., min_length=1, description="Name of the event to log"),
     repo: AnalyticsRepository = Depends(get_repository)
 ):
-    print(f"Logging event: {event}")
     """Log an event with optional timestamp"""
     try:
         repo.log_event(event=event)

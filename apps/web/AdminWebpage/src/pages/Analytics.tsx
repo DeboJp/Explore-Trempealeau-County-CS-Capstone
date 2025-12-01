@@ -3,6 +3,7 @@ import Chart from 'chart.js/auto';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import 'chartjs-adapter-date-fns'; // Import the adapter
+import AnalyticsService from '../services/AnalyticsService';
 
 interface AnalyticsData {
   views: Array<{
@@ -13,6 +14,8 @@ interface AnalyticsData {
 }
 
 function Analytics() {
+  const service = AnalyticsService;
+
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
   const [currTablePage, setCurrTablePage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
@@ -30,16 +33,12 @@ function Analytics() {
   useEffect(() => {
     async function getAnalytics() {
       try {
-        console.log('Fetching analytics data from API...', API_BASE_URL);
-        const url = new URL(`${API_BASE_URL}/api/v1/analytics/event`);
-        url.searchParams.append('event_type', 'view');
-        const response = await fetch(url.toString(), {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            // 'Authorization': `Bearer ${yourAccessToken}`,
-          },
-        });
+        // only get 'view' event type data for today
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const timestampStart = Math.floor(start.getTime() / 1000);
+        const response = await service.get_event_type_data('view', {oldest: timestampStart.toString()})
+
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -53,27 +52,22 @@ function Analytics() {
     }
     
     getAnalytics();
-  }, []); // Run once on mount
+  }, []);
 
   useEffect(() => {
     // Placeholder for ChartJS initialization code
     const ctx = (document.getElementById('viewsPerDayChart') as HTMLCanvasElement).getContext('2d');
     if (ctx) {
       // Example ChartJS setup (assuming ChartJS is imported and available)
-      let rand = Array(24).fill(0).map(() => Math.floor(Math.random() * 20) + 1);
-      let viewsData = [];
-      for(let i = 0; i < 24; i++){
-        let date = new Date();
-        date.setHours(i, 0, 0, 0);
-        viewsData.push({x: new Date(date.getTime()), y: rand[i]});
-      }
-      console.log('Analytics data:', analyticsData);
+      if(!analyticsData) return;
+
+      
       new Chart(ctx, {
         type: 'line',
         data: {
            datasets: [{
              label: 'Views',
-              data: analyticsData ? analyticsData.map(item => ({ x: new Date(item.timestamp * 1000), y: item.count })) : viewsData,
+              data: analyticsData.map(item => ({ x: new Date(item.timestamp * 1000), y: item.count })),
               fill: false,
               borderColor: 'rgb(75, 192, 192)',
               tension: 0.1
@@ -135,8 +129,8 @@ function Analytics() {
           let start = new Date();
           start.setHours(0, 0, 0, 0);
           let timestampStart = Math.floor(start.getTime() / 1000);
-          const todayData = await fetch(`${API_BASE_URL}/api/v1/analytics/event?event_type=view&oldest=${timestampStart}`)
-            .then(response => response.json())
+          const todayData = await service.get_event_type_data('view', {oldest: timestampStart.toString()})
+          const data = await todayData.json()
             .then(data => data.map((item: any) => ({ x: new Date(item.timestamp * 1000), y: item.count })).sort((a: any, b: any) => a.x - b.x))
             .then(data => {
                 console.log('Today data:', data);
@@ -153,8 +147,8 @@ function Analytics() {
           start.setDate(start.getDate() - 7);
           start.setHours(0, 0, 0, 0);
           let timestampStart = Math.floor(start.getTime() / 1000);
-          const todayData = await fetch(`${API_BASE_URL}/api/v1/analytics/event?event_type=view&oldest=${timestampStart}`)
-            .then(response => response.json())
+          const weekData = await service.get_event_type_data('view', {oldest: timestampStart.toString()})
+          const data = await weekData.json()
             .then(data => data.map((item: any) => ({ x: new Date(item.timestamp * 1000), y: item.count })).sort((a: any, b: any) => a.x - b.x))
             .then(data => {
                 chartInstance.data.datasets[0].data = data;
@@ -171,8 +165,8 @@ function Analytics() {
           start.setDate(start.getDate() - 30);
           start.setHours(0, 0, 0, 0);
           let timestampStart = Math.floor(start.getTime() / 1000);
-          const monthData = await fetch(`${API_BASE_URL}/api/v1/analytics/event?event_type=view&oldest=${timestampStart}&group=day`)
-            .then(response => response.json())
+          const monthData = await service.get_event_type_data('view', {oldest: timestampStart.toString()})
+          const data = await monthData.json()
             .then(data => data.map((item: any) => ({ x: new Date(item.timestamp * 1000), y: item.count })).sort((a: any, b: any) => a.x - b.x))
             .then(data => {
                 chartInstance.data.datasets[0].data = data;

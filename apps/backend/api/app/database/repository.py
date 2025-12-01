@@ -3,8 +3,11 @@ from datetime import datetime
 from decimal import Decimal
 import uuid
 from fastapi import FastAPI, HTTPException, status
+import boto3
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr
+from app.config import get_settings
+
 
 class Repository:
     """Base repository class"""
@@ -35,6 +38,8 @@ class PageRepository(Repository):
     
     def __init__(self, table):
         self.table = table
+        self.settings = get_settings()
+        self.s3 = boto3.client("s3", region_name=self.settings.aws_region)
     
     def create_page(self, page_data: dict) -> dict:
         """Create a new page for a user"""
@@ -82,6 +87,17 @@ class PageRepository(Repository):
                 detail=f"Error retrieving page: {str(e)}"
             )
     
+    def get_count_pages(self) -> int:
+        """Get total count of pages in the table"""
+        try:
+            response = self.table.scan(Select='COUNT')
+            return response.get("Count", 0)
+        except ClientError as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error counting pages: {str(e)}"
+            )
+
     def list_pages(
         self, 
         limit: int = 50,
@@ -103,6 +119,31 @@ class PageRepository(Repository):
                 detail=f"Error listing pages: {str(e)}"
             )
     
+    def list_published_pages(
+        self, 
+        limit: int = 50,
+    ) -> Dict[str, Any]:
+        try:
+            # This scans the entire table until the 1MB limit is hit
+            response = self.table.scan(
+                Limit=limit,
+                FilterExpression="published = :published",
+                ExpressionAttributeValues={":published": True}
+            )
+            print(response)
+            # The response will contain all pages found within the scan limit (max 1MB of data)
+            return {
+                "pages": self._convert_decimals(response.get("Items", [])),
+                "count": response.get("Count", 0),
+                # LastEvaluatedKey might still exist if the 1MB limit was hit
+                "last_evaluated_key": response.get("LastEvaluatedKey") 
+            }
+        except ClientError as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error listing pages: {str(e)}"
+            )
+    
     def update_page(
         self, 
         page_id: str, 
@@ -110,7 +151,7 @@ class PageRepository(Repository):
         updates: dict
     ) -> Optional[dict]:
         # Remove None values
-        updates = {k: v for k, v in updates.pages() if v is not None}
+        updates = {k: v for k, v in updates.items() if v is not None}
         
         if not updates:
             raise HTTPException(
@@ -123,7 +164,7 @@ class PageRepository(Repository):
         expr_attr_names = {}
         expr_attr_values = {}
         
-        for idx, (key, value) in enumerate(updates.pages()):
+        for idx, (key, value) in enumerate(updates.items()):
             placeholder_name = f"#attr{idx}"
             placeholder_value = f":val{idx}"
             update_expr_parts.append(f"{placeholder_name} = {placeholder_value}")
@@ -161,8 +202,42 @@ class PageRepository(Repository):
                 detail=f"Error updating page: {str(e)}"
             )
     
+    def publish_page(self, page_id: str, title: str) -> Optional[dict]:
+        """Publish an page (user must own the page)"""
+        try:
+            response = self.table.update_item(
+                Key={
+                    'id': int(page_id),  # Required partition key
+                    'title': title  # Required sort key 
+                },
+                UpdateExpression="SET #published = :true, #published_at = :now, #updated_at = :now",
+                ExpressionAttributeNames={
+                    "#published": "published",
+                    "#published_at": "published_at",
+                    "#updated_at": "updated_at"
+                },
+                ExpressionAttributeValues={
+                    ":true": True,
+                    ":now": datetime.utcnow().isoformat()
+                },
+                ConditionExpression="attribute_exists(id)",
+                ReturnValues="ALL_NEW"
+            )
+            return self._convert_decimals(response.get("Attributes"))
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Item not found or access denied"
+                )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error publishing page: {str(e)}"
+            )
+
     def delete_page(self, page_id: str, title: str) -> bool:
         """Delete an page (user must own the page)"""
+        print("Deleting page from repo:", page_id, title)
         try:
             self.table.delete_item(
                 Key={
@@ -185,18 +260,84 @@ class PageRepository(Repository):
     
     def search_pages(
         self,
-        search_term: str,
+        search_term: Optional[str] = "",
+        city: Optional[str] = None,
+        type: Optional[str] = None,
+        published: Optional[bool] = None,
         limit: int = 50
     ) -> List[dict]:
         """Search pages by title or description (using scan - not optimal for large datasets)"""
         try:
-            response = self.table.scan(
-                FilterExpression=Attr("user_id").eq(user_id) & (
-                    Attr("title").contains(search_term) | 
-                    Attr("description").contains(search_term)
-                ),
-                Limit=limit
-            )
+            response = None
+            if not city and not type:
+                print("Searching all pages for term:", search_term)
+                if not published:
+                    response = self.table.scan(
+                        FilterExpression=(
+                            Attr("title").contains(search_term) | 
+                            Attr("pageContent").contains(search_term)
+                        ),
+                        Limit=limit
+                    )
+                else:
+                    response = self.table.scan(
+                        FilterExpression=(
+                            (Attr("title").contains(search_term) | 
+                            Attr("pageContent").contains(search_term)) &
+                            Attr("published").eq(True)
+                        ),
+                        Limit=limit
+                    )
+                    
+            elif city and not type:
+                print("Searching pages for city:", city)
+                if not search_term or len(search_term.strip()) == 0:
+                    response = self.table.scan(
+                        FilterExpression=Attr("city").contains(city),
+                        Limit=limit
+                    )
+                    print(response)
+                else:
+                    print("Searching pages in city with term:", search_term)
+                    response = self.table.scan(
+                        FilterExpression=(
+                            (Attr("title").contains(search_term) | 
+                            Attr("pageContent").contains(search_term)) &
+                            Attr("city").eq(city)
+                        ),
+                        Limit=limit
+                    )
+            elif type and not city:
+                if not search_term or search_term.strip() == "":
+                    response = self.table.scan(
+                        FilterExpression=Attr("type").eq(type),
+                        Limit=limit
+                    )
+                else:
+                    response = self.table.scan(
+                        FilterExpression=(
+                            (Attr("title").contains(search_term) | 
+                            Attr("pageContent").contains(search_term)) &
+                            Attr("type").eq(type)
+                        ),
+                        Limit=limit
+                    )
+            else:  # both city and type provided
+                if not search_term or search_term.strip() == "":
+                    response = self.table.scan(
+                        FilterExpression=Attr("city").eq(city) & Attr("type").eq(type),
+                        Limit=limit
+                    )
+                else:
+                    response = self.table.scan(
+                        FilterExpression=(
+                            (Attr("title").contains(search_term) | 
+                            Attr("pageContent").contains(search_term)) &
+                            Attr("city").eq(city) &
+                            Attr("type").eq(type)
+                        ),
+                        Limit=limit
+                    )
             return self._convert_decimals(response.get("Items", []))
         except ClientError as e:
             raise HTTPException(
@@ -291,3 +432,4 @@ class AnalyticsRepository(Repository):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error logging page view: {str(e)}"
             )
+    

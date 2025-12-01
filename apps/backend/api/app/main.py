@@ -5,6 +5,7 @@ from app.routes.pages import router as pages_router
 from app.routes.analytics import router as analytics_router
 from app.config import get_settings
 
+
 app = FastAPI(
     title="FastAPI with AWS Cognito + DynamoDB",
     description="API with AWS Cognito OAuth and DynamoDB CRUD",

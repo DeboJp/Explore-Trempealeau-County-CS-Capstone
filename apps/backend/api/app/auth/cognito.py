@@ -62,6 +62,9 @@ class CognitoVerifier:
             Decoded token payload
         """
         try:
+            print("Verifying token:", token)
+            print("Expected token use:", token_use)
+
             # Get token header without verification
             unverified_header = jwt.get_unverified_header(token)
             
@@ -76,9 +79,16 @@ class CognitoVerifier:
                 audience=self.app_client_id if token_use == "id" else None,
                 options={
                     "verify_aud": token_use == "id",
-                    "verify_exp": True
+                    "verify_exp": True,
                 }
             )
+
+            # Check if token is expired
+            if payload.get("exp") and time.time() > payload["exp"]:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token has expired"
+                )
             
             # Verify token_use claim
             if payload.get("token_use") != token_use:
@@ -98,8 +108,14 @@ class CognitoVerifier:
             return payload
             
         except JWTError as e:
+            print("JWTError:", e)
+            if("expired" in str(e).lower()):
+                print("""Token expired error detected""")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Expired token"
+                )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not validate credentials",
-                headers={"WWW-Authenticate": "Bearer"},
+                detail="Invalid token"
             )

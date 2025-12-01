@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     dynamodb_table_name: str
     dynamodb_endpoint_url: Optional[str] = None  # For local DynamoDB
     
+    s3_bucket_name: str
+    
     @property
     def jwks_url(self) -> str:
         return (

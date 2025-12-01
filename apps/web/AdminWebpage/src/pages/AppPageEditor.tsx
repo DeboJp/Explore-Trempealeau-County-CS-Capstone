@@ -1,17 +1,17 @@
-import React, {useState} from "react";
+import React, {useEffect, useState} from "react";
 import SectionToggle from "../components/SectionToggle";
 import FormArea from "../components/FormArea";
 import { useSearchParams } from "react-router";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faQuestionCircle } from '@fortawesome/free-solid-svg-icons';
+import { faQuestionCircle, faLock } from '@fortawesome/free-solid-svg-icons';
 import { Tooltip } from 'react-tooltip'
 import parks from '../data/locations/PublicParks.json'; // temp. data
+import PageService from "../services/PageService";
+import FormControl from "../components/FormControl";
+import AWS from 'aws-sdk';
 
 
 function AppPageEditor() {
-  // const ACCESS_TOKEN = "eyJraWQiOiI1b1g1VFwvVDlaSkg5VUFHd3E1QWk4K1g1eFFxSWxPVU1remd6NWhvMXBXYz0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI4MWViMTVjMC0xMGExLTcwZWYtY2RmZi1lMDhkNDZmY2U3NGYiLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAudXMtZWFzdC0yLmFtYXpvbmF3cy5jb21cL3VzLWVhc3QtMl83ZUViaVZiVFgiLCJjbGllbnRfaWQiOiI2NHJnaDNtbGUxNzF0a29lZGVwNmJjOXUwdiIsIm9yaWdpbl9qdGkiOiJlODFlNDk0Ny0yMTBhLTRiN2MtOGZlMS03NTU2MzA2MDkwYzQiLCJldmVudF9pZCI6ImE1ZWZkNTk2LTJiMzAtNDEyNy1iOWVhLTIzMzExYTQ2MTJlNyIsInRva2VuX3VzZSI6ImFjY2VzcyIsInNjb3BlIjoiYXdzLmNvZ25pdG8uc2lnbmluLnVzZXIuYWRtaW4iLCJhdXRoX3RpbWUiOjE3NjQzODIxODgsImV4cCI6MTc2NDM4NTc4OCwiaWF0IjoxNzY0MzgyMTg4LCJqdGkiOiI0NDU5NWVjYy05ZDc0LTQ2MmQtODFmZC04YmFlNjcwM2IxODIiLCJ1c2VybmFtZSI6InRlc3R1c2VyIn0.tzEcZQp7Ig_0m4a3RBJs52lj6qK3e9DdK__gzo09DiY4T6W65sJuiwwQ35rAiIF-SlvULq5tBIK_sBz63ESGmJnxCpkj2XKMjODIrNztfgeW8xLS2rGfEWeFotvjiwdPN9tJ61gDKQQY7IR17ftBEcB8pF8zJJ-wGS6kbZaoiNoNYjFO6kL8CovuatuhUEYvQH9AWFv_5uOW93nscmzquXHzSmFIApR1ykm8jxY0WeiO9_wuy06jdXrzUoQz8-5l9sfpIxqTZA2WaQAQjTJMd5BnrZV6mzqW0WQNlL0Jgd6nsQ3-dVCJ3PsdfKa-dyWcqOpmoe_l7KnAXpIPSAHN_w";
-  const API_BASE_URL = "http://localhost:8000";
-
   const [formData, setFormData] = useState({
     title: '',
     type: '',
@@ -21,6 +21,41 @@ function AppPageEditor() {
     gisId: ''
   });
   const [categories, setCategories] = useState([]);
+  const [isPublished, setIsPublished] = useState(false);
+  const [visualizerImg, setVisualizerImg] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+
+  const uploadImageToS3 = async (file) => {
+    const token = localStorage.getItem('access_token');
+    const apiBase = import.meta.env.VITE_API_BASE_URL; // Ensure this is set
+
+    // 1. Get Presigned URL from Backend
+    const presignResponse = await fetch(`${apiBase}/pages/generate-upload-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` // Authorized request
+      },
+      body: JSON.stringify({
+        file_name: file.name,
+        content_type: file.type
+      })
+    });
+
+    console.log('Presign response status:', presignResponse);
+    const { upload_url, final_file_url } = await presignResponse.json();
+
+    // 2. Upload File directly to S3 using the Presigned URL
+    const uploadResponse = await fetch(upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file
+    });
+
+    
+    return final_file_url;
+  };
 
   const addCategoryForm = (e) => {
     // Append a new category form area
@@ -28,25 +63,45 @@ function AppPageEditor() {
     setCategories([...categories, { name: `Category ${categories.length + 1}`, content: '' }]);
   }
 
-  // check if location exists
-  // TODO: API call to check if GIS ID exists in page database
+  
+  
   const [searchParams] = useSearchParams();
-  const locationId = searchParams.get('location');
-  if (locationId && formData.gisId === '') {
-      const location = parks.features.find(feature => feature.attributes.OBJECTID === parseInt(locationId));
-      if (location) {
-        setFormData({ ...formData, gisId: locationId, title: location.attributes.Name });
-      } else {
-        setFormData({ ...formData, gisId: locationId });
+  const pageId = searchParams.get('id');
+  const title = searchParams.get('title');
+  useEffect(() => {
+    async function fetchPageData() {
+      if (pageId && title) {
+        setIsLoading(true);
+        try {
+          const pageData = await PageService.getPage(parseInt(pageId), title);
+          setIsPublished(pageData.published || false);
+          let pageContent = pageData.pageContent ? JSON.parse(pageData.pageContent) : {};
+          setFormData({...formData,
+            title: pageData.title || '',
+            type: pageContent.type.toLowerCase() || '',
+            city: pageContent.city.toLowerCase() || '',
+            description: pageContent.description || '',
+            gisId: pageContent.gisId || '',
+          });
+          if (pageContent.image) {
+            setFormData(prevData => ({...prevData, image: pageContent.image}));
+            setVisualizerImg(pageContent.image);
+          }
+
+          // parse categories from pageContent JSON
+          if(pageContent.categories) {
+            setCategories(pageContent.categories);
+          }
+          setIsLoading(false);
+        }
+        catch (error) {
+          console.error('Error fetching page data:', error);
+          setIsLoading(false);
+        }
       }
-  }
-  if(false){
-    // parse XML data and populate form
-
-    // setFormData({...});
-    // setCategories([...]);
-
-  }
+    }
+    fetchPageData();
+  }, [pageId, title]);
 
   const removeCategoryForm = (index: number) => {
     const newCategories = [...categories];
@@ -84,64 +139,79 @@ function AppPageEditor() {
     // Function to parse form data before submission
     const dataToSubmit = {
       ...formData,
+      image: formData.image,
       categories: categories
     };
     console.log('Submitting data:', dataToSubmit);
     // Submit logic goes here
     // construct XML
-    var xml = '<page>';
-    xml += `<title>${dataToSubmit.title}</title>`;
-    xml += `<type>${dataToSubmit.type}</type>`;
-    xml += `<city>${dataToSubmit.city}</city>`;
-    xml += `<description>${dataToSubmit.description}</description>`;
-    xml += `<gisId>${dataToSubmit.gisId}</gisId>`;
-    dataToSubmit.categories.forEach((category, index) => {
-      xml += `<category>`;
-      xml += `<name>${category.name}</name>`;
-      xml += `<content>${category.content}</content>`;
-      xml += `</category>`;
-    });
-    xml += '</page>';
-    
-    const uuid = crypto.randomUUID();
-    // POST to API
-    console.log('Constructed XML:', xml);
-    await fetch(`${API_BASE_URL}/api/v1/pages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ACCESS_TOKEN}`,
-      },
-      body: JSON.stringify({
-        'id': 4,
-        'title': dataToSubmit.title,
-        'pageContent': xml,
-      }),
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    let json = dataToSubmit
+    // add categories
+    json.categories = categories.map((category) => ({
+      name: category.name,
+      content: category.content
+    }));
+    json = JSON.stringify(json);
+
+    try {
+      if(pageId && title) {
+        // Update existing page logic (not implemented in PageService yet)
+        const response = await PageService.updatePage(parseInt(pageId), title, {
+          'pageContent': json,
+        }, localStorage.getItem('access_token') || '');
+      } else {
+        // Add new page
+        const idx = await PageService.getPagesCount().then(data => data.count + 1);
+        const data = {
+            'id': idx,
+            'title': dataToSubmit.title,
+            'pageContent': json,
+          };
+
+        const response = await PageService.addPage(data, localStorage.getItem('access_token') || '');
       }
-      return response.json();
-    })
-    .then(data => {
-      console.log('Page created successfully:', data);
-      // Optionally reset form or provide user feedback here
-    })
-    .catch(error => {
-      console.error('Error creating page:', error);
-      // Optionally provide user feedback here
-    });
+      // redirect to page search after successful submission
+      window.location.href = '/pages';
+    } catch (error) {
+      console.error('Error submitting page:', error);
+    }
+  }
+
+  const handlePublish = async (e) => {
+    if(pageId && title) {
+      e.preventDefault();
+      try {
+        const response = await PageService.publishPage(parseInt(pageId), title, localStorage.getItem('access_token') || '');
+        setIsPublished(true);
+      } catch (error) {
+        console.error('Error publishing page:', error);
+      }
+    }
   }
 
   return (
       <div className="flex flex--justify-space-between w-100">
         <form className="w-100">
           <FormArea width="75%" style={{ padding: '1rem', marginBottom: '1rem' }} title="Content">
-              <div className="flex flex-col field-group">
-                <label htmlFor="page-title" className="label label--required">Title</label>
-                <input type="text" id="page-title" placeholder="Title" name="page-title" className="input input--text w-50" value={formData.title} onChange={(e) => {setFormData({...formData, title: e.target.value});}}/>
-              </div>
+              <FormControl disabled={searchParams.get('id') !== null && searchParams.get('title') !== null} >
+                <div className={"flex flex-col field-group "+ (searchParams.get('id') !== null && searchParams.get('title') !== null ? "bg-light-secondary" : "")}>
+                  <div className="flex flex--align-center">
+                    <label htmlFor="page-title" className="label label--required">Title</label>
+                    {searchParams.get('id') !== null && searchParams.get('title') !== null &&
+                      <>
+                        <FontAwesomeIcon icon={faLock} style={{ fontSize: '14px', marginLeft: '0.2rem' }} />
+                        <a className="tooltip lock-tooltip"><FontAwesomeIcon icon={faQuestionCircle} style={{ fontSize: '14px', marginLeft: '0.2rem' }} /></a>
+                        <Tooltip anchorSelect=".lock-tooltip" place="right">
+                            <div style={{ maxWidth: '200px', textWrap: 'break-word' }}>
+                                Titles cannot be changed after creation to maintain URL integrity. To change the title, please create a new page with the new title and delete this page.
+                            </div>
+                        </Tooltip>
+                      </>
+                    }
+                  </div>
+                  <input type="text" id="page-title" placeholder="Title" name="page-title" className="input input--text w-50" value={formData.title} onChange={(e) => {setFormData({...formData, title: e.target.value});}}/>
+                </div>
+              </FormControl>
               <div className="flex flex-col field-group mt-1">
                 <label htmlFor="page-type" className="label label--required">Page Type</label>
                 <select id="page-type" name="page-type" className="input input--text w-50" value={formData.type} onChange={(e) => {setFormData({...formData, type: e.target.value});}}>
@@ -151,6 +221,7 @@ function AppPageEditor() {
                   <option value="business">Business</option>
                   <option value="community">Community</option>
                   <option value="water">Water</option>
+                  <option value="wildlife">Wildlife</option>
                 </select>
               </div>
               <div className="flex flex-col field-group mt-1">
@@ -176,7 +247,13 @@ function AppPageEditor() {
               </div>
               <div className="flex flex-col field-group mt-1">
                 <label htmlFor="page-image" className="label label--required">Image</label>
-                <input type="file" id="page-image" name="page-image" className="input input--text w-50" onChange={(e) => {setFormData({...formData, image: e.target.files[0]});}} />
+                <input type="file" id="page-image" name="page-image" className="input input--text w-50" onChange={async (e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setVisualizerImg(URL.createObjectURL(e.target.files[0]));
+                    const uploadedImageUrl = await uploadImageToS3(e.target.files[0]);
+                    setFormData({...formData, image: uploadedImageUrl});
+                  }
+                }} />
               </div>
               <div className="flex flex-col field-group mt-1">
                 <div className="flex">
@@ -201,14 +278,17 @@ function AppPageEditor() {
                   </div>
               </Tooltip>
           </div>
-          <button className="btn btn--primary mt-1" onClick={(e) => handleSubmit(e)}>Save</button>
+          <div className="flex">
+            <button className="btn btn--primary mt-1" onClick={(e) => handleSubmit(e)}>Save</button>
+            <button className="btn btn--secondary mt-1 ml-1" onClick={(e) => {handlePublish(e)}} style={{opacity: isPublished ? 0.7 : 1}}>{isPublished ? 'Published' : 'Publish'}</button>
+          </div>
       </form>
       <div className="w-75">
         {/* Preview Section */}
         <h2>Preview</h2>
         <div className="emulator">
           <div className="image">
-            {formData.image ? <img src={URL.createObjectURL(formData.image)} alt="Page" /> : <div>Image Preview</div>}
+            {visualizerImg ? <img src={visualizerImg} alt="Page" /> : <div>Image Preview</div>}
           </div>
           <div style={{paddingLeft: '24px', paddingRight: '24px'}}>
             <div className="flex flex--justify-space-between align-items--center" style={{marginTop: '1rem', marginBottom: '1rem'}}>

@@ -96,7 +96,6 @@ body {
 }
 
 a.btn {
-  padding: 0.375rem 0.875rem;
   text-decoration: none;
   display: inline-block;
 }
@@ -219,6 +218,14 @@ button:hover {
   background-color: #f4f6fa;
 }
 
+.bg-light-secondary {
+  background-color: #b1b6ba;
+}
+
+.bg-dark-secondary {
+  background-color: #9ca3af;
+}
+
 .fs-1 {
   font-size: 1rem;
 }
@@ -272,11 +279,13 @@ button:hover {
 
 
 .section-toggle-header {
-  font-size: 1.25rem;
+  font-size: 1rem;
+  color: #4b5563;
 }
 
 .triangle {
-  margin-right: 0.75rem;
+  font-size: 0.75rem;
+  margin-right: 0.5rem;
   transition: transform 0.3s ease-in-out;
 }
 
@@ -292,12 +301,19 @@ button:hover {
 .hidden {
   display: none;
 }
-
 .mt-1 {
   margin-top: 1rem;
 }
+
+.mt-0-5 {
+  margin-top: 0.5rem;
+}
 .mb-1 {
   margin-bottom: 1rem;
+}
+
+.ml-1 {
+  margin-left: 1rem;
 }
 
 .gap-1 {
@@ -363,6 +379,12 @@ button:hover {
 
 .form-area--width-50\% {
   max-width: 50%;
+}
+
+.form-control--disabled input,
+.form-control--disabled select,
+.form-control--disabled textarea {
+  pointer-events: none;
 }
 
 .emulator {
