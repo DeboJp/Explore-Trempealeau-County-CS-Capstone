@@ -3,9 +3,32 @@ import MapView from '../components/MapView'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons'; // Import the specific icon
 import SearchBar from '../components/SearchBar';
-
+import { useAuth } from "react-oidc-context";
 
 const Dashboard = () => {
+  // check if user is authenticated
+  const auth = useAuth();
+  console.log('Auth state:', auth);
+  if (auth.isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (auth.error) {
+    return <div>Encountering error... {auth.error.message}</div>;
+  }
+
+  if(!auth.isAuthenticated && localStorage.getItem('access_token') != null) {
+    localStorage.removeItem('access_token');
+  }
+  // if authenticated but access token is not in localStorage, store it
+  if (auth.isAuthenticated && localStorage.getItem('access_token') === null) {
+    localStorage.setItem('access_token', auth.user?.access_token || '');
+  }
+
+  if (auth.isAuthenticated && localStorage.getItem('refresh_token') === null) {
+    localStorage.setItem('refresh_token', auth.user?.refresh_token || '');
+  }
+
   return (
     <main className="main-content">
       <div className="flex flex--align-center flex--justify-space-between w-100">
