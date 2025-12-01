@@ -43,6 +43,13 @@ const TRANSPORT_MODES = ["Walk", "ATV", "Snowmobile"] as const;
 const FILTER_OPTIONS = ["Parks", "Trail X", "Trail Y"];
 const MAX_STOPS = 5;
 
+// Polyline stroke style type definitions
+type StrokeStyle = {
+  strokeColor: string;
+  strokeWidth: number;
+  lineDashPattern?: number[];
+};
+
 // Color + opacity tokens
 const PRIMARY_BLUE = "#266AB1";
 const LIGHT_BLUE = "#9EC7F0";
@@ -107,6 +114,7 @@ export default function MapScreen() {
     };
   }, []);
 
+  // Ensure map region stays within Trempealeau County + reasonable zooms
   const clampRegion = (region: Region): Region => {
     let { latitude, longitude, latitudeDelta, longitudeDelta } = region;
 
@@ -118,6 +126,32 @@ export default function MapScreen() {
 
     return { latitude, longitude, latitudeDelta, longitudeDelta };
   };
+
+  // Get stroke style for route polylines
+  const getStrokeStyle = (): StrokeStyle => {
+    switch (transportMode) {
+      case "Walk":
+        return {
+          strokeColor: "#2c92ffff",
+          strokeWidth: 4,
+          lineDashPattern: [1, 6], // dash length, gap length
+        };
+      case "ATV":
+        return {
+          strokeColor: "#2c92ffff",
+          strokeWidth: 5,
+        };
+      case "Snowmobile":
+        return {
+          strokeColor: "#2c92ffff",
+          strokeWidth: 3,
+          lineDashPattern: [10, 6], 
+        };
+      default:
+        return { strokeColor: "#2c92ffff", strokeWidth: 4 };
+    }
+  };
+
 
   // Call routing backend and update polyline + summary
   const fetchRoute = async (origin: Coordinate, destination: Coordinate) => {
@@ -298,8 +332,7 @@ export default function MapScreen() {
         {routeCoords.length > 0 && (
           <Polyline
             coordinates={routeCoords}
-            strokeWidth={4}
-            strokeColor={PRIMARY_BLUE}
+            {...getStrokeStyle()}
           />
         )}
       </MapView>
