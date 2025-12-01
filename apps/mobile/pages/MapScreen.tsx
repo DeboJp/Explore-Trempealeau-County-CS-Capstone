@@ -3,6 +3,7 @@ import {StyleSheet, View, Text, TouchableOpacity, TextInput, KeyboardAvoidingVie
   Platform, Modal, TouchableWithoutFeedback, Animated, Dimensions, Keyboard} from "react-native";
 import MapView, { Marker, Region, Polyline } from "react-native-maps";
 import markersData from "../lib/markers.json";
+import places from "../lib/searchLocIndex.json";
 
 // Base URL for your routing backend - ignore this, this is my local wifi IP port forwarding lol
 const API_BASE = "http://xxx.xxx.x.xxx:8000";
@@ -16,15 +17,13 @@ const INITIAL_REGION = {
 };
 
 // Bounding box to restrict map panning
+const delta = 1;
 const TREMP_BOUNDS = {
-  minLat: 43.983886,
-  maxLat: 44.597192,
-  minLng: -91.614620,
-  maxLng: -91.150042,
+  minLat: 43.983886 - delta,
+  maxLat: 44.597192 + delta,
+  minLng: -91.614620 - delta,
+  maxLng: -91.150042 + delta,
 };
-const MIN_DELTA = 0.005;
-const MAX_DELTA = 0.3;
-
 
 // Simple shared types
 type Coordinate = { latitude: number; longitude: number };
@@ -36,6 +35,14 @@ type MarkerItem = {
   lng?: number;
   latitude?: number;
   longitude?: number;
+};
+// Entries from searchLocIndex.json
+type Place = {
+  id: number;
+  name: string;
+  lat: number;
+  lon: number;
+  tags?: Record<string, string>;
 };
 
 // Static options for UI toggles
@@ -50,6 +57,9 @@ type StrokeStyle = {
   lineDashPattern?: number[];
 };
 
+// Load places data from local JSON
+const PLACES: Place[] = places as unknown as Place[];
+
 // Color + opacity tokens
 const PRIMARY_BLUE = "#266AB1";
 const LIGHT_BLUE = "#9EC7F0";
@@ -62,7 +72,7 @@ const SHEET_SLIDE_DISTANCE = Dimensions.get("window").height * 0.5;
 export default function MapScreen() {
   //map regions
   const [mapRegion, setMapRegion] = useState(INITIAL_REGION);
-
+  const mapRef = useRef<MapView | null>(null);
   // Local POI markers from JSON
   const [markers, setMarkers] = useState<MarkerItem[]>([]);
   // Raw start/end (and optional) stops placed on map via tap/marker
@@ -83,6 +93,10 @@ export default function MapScreen() {
 
   // Inputs typed into the planner (Start, [Stops], Destination)
   const [searchInputs, setSearchInputs] = useState<string[]>(["", ""]);
+
+  //search UI state
+  const [activeFieldIndex, setActiveFieldIndex] = useState<number | null>(null);
+  const [suggestions, setSuggestions] = useState<Place[]>([]);
 
   // UI state for bottom sheet + keyboard
   const [layersVisible, setLayersVisible] = useState(false);
@@ -114,15 +128,12 @@ export default function MapScreen() {
     };
   }, []);
 
-  // Ensure map region stays within Trempealeau County + reasonable zooms
+  // Ensure map region stays within Trempealeau County
   const clampRegion = (region: Region): Region => {
     let { latitude, longitude, latitudeDelta, longitudeDelta } = region;
 
     latitude = Math.min(TREMP_BOUNDS.maxLat, Math.max(TREMP_BOUNDS.minLat, latitude));
     longitude = Math.min(TREMP_BOUNDS.maxLng, Math.max(TREMP_BOUNDS.minLng, longitude));
-
-    latitudeDelta = Math.min(MAX_DELTA, Math.max(MIN_DELTA, latitudeDelta));
-    longitudeDelta = Math.min(MAX_DELTA, Math.max(MIN_DELTA, longitudeDelta));
 
     return { latitude, longitude, latitudeDelta, longitudeDelta };
   };
@@ -152,6 +163,21 @@ export default function MapScreen() {
     }
   };
 
+  // Zoom/pan map to show entire route
+  const fitRouteOnMap = (coords: Coordinate[]) => {
+    if (!mapRef.current || !coords.length) return;
+
+    mapRef.current.fitToCoordinates(coords, {
+      edgePadding: {
+        top: 80,
+        right: 40,
+        bottom: 350, // extra space for bottom sheet
+        left: 40,
+      },
+      animated: true,
+    });
+  };
+
 
   // Call routing backend and update polyline + summary
   const fetchRoute = async (origin: Coordinate, destination: Coordinate) => {
@@ -165,6 +191,8 @@ export default function MapScreen() {
       const data = await res.json();
       const coords: Coordinate[] = data.coords || [];
       setRouteCoords(coords);
+
+      fitRouteOnMap(coords);
 
       if (data.distance_m != null && data.duration_s != null) {
         setRouteInfo({
@@ -205,12 +233,15 @@ export default function MapScreen() {
 
   // Reset all transient route/UI state
   const handleClear = () => {
+    Keyboard.dismiss();
     setStops([]);
     setRouteCoords([]);
     setRouteInfo(null);
     setSearchInputs(["", ""]);
     setActiveFilters([]);
     setTransportMode("Walk");
+    setSuggestions([]);
+    setActiveFieldIndex(null);
   };
 
   // Tap on a marker to use it as start/end in same two-step pattern
@@ -245,7 +276,65 @@ export default function MapScreen() {
       next[index] = text;
       return next;
     });
+
+    const q = text.trim().toLowerCase();
+    if (!q) {
+      setSuggestions([]);
+      return;
+    }
+
+    // Simple local filter over PLACES
+    const matches = PLACES.filter((p) =>
+      p.name.toLowerCase().includes(q)
+    ).slice(0, 20);
+
+    setSuggestions(matches);
   };
+
+  // Handle selecting a suggestion from the dropdown
+  const handleSelectSuggestion = (fieldIndex: number, place: Place) => {
+    const coord: Coordinate = { latitude: place.lat, longitude: place.lon };
+
+    // Set text in the chosen field
+    setSearchInputs((prev) => {
+      const next = [...prev];
+      next[fieldIndex] = place.name;
+      return next;
+    });
+
+    // Clear suggestion UI
+    setSuggestions([]);
+    setActiveFieldIndex(null);
+
+    setStops((prev) => {
+      let next = [...prev];
+
+      if (fieldIndex === 0) {
+        if (next.length === 0) {
+          next = [coord];
+        } else if (next.length === 1) {
+          next = [coord, next[0]];
+        } else {
+          next[0] = coord;
+        }
+      } else {
+        if (next.length === 0) {
+          next = [coord]; 
+        } else if (next.length === 1) {
+          next.push(coord); 
+        } else {
+          next[1] = coord; 
+        }
+      }
+
+      return next;
+    });
+
+    setRouteCoords([]);
+    setRouteInfo(null);
+    Keyboard.dismiss();
+  };
+
 
   // Insert a new "Stop" field before the Destination
   const handleAddStop = () => {
@@ -259,14 +348,20 @@ export default function MapScreen() {
 
   // For now, just log planner state (future hook: geocode + fetchRoute)
   const handleSearchStart = () => {
-    console.log("Plan route via search:", {
-      waypoints: searchInputs,
-      mode: transportMode,
-      filters: activeFilters,
-      mapType,
-    });
-  };
+    Keyboard.dismiss();
+    setSuggestions([]);
+    setActiveFieldIndex(null);
 
+    if (stops.length < 2) {
+      console.log("Need at least start and destination before routing.");
+      return;
+    }
+
+    const origin = stops[0];
+    const destination = stops[1];
+
+    fetchRoute(origin, destination);
+  };
   // Toggle “map details” filter badges (parks, specific trails, etc.)
   const toggleFilter = (name: string) => {
     setActiveFilters((prev) =>
@@ -299,6 +394,7 @@ export default function MapScreen() {
   return (
     <View style={styles.container}>
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFill}
         mapType={mapType}
         region={mapRegion}
@@ -421,6 +517,12 @@ export default function MapScreen() {
                         onChangeText={(text) =>
                           handleChangeSearchInput(idx, text)
                         }
+                        onFocus={() => {
+                          setActiveFieldIndex(idx);
+                          if (searchInputs[idx]?.trim()) {
+                            handleChangeSearchInput(idx, searchInputs[idx]);
+                          }
+                        }}
                         returnKeyType="next"
                       />
                     </View>
@@ -439,7 +541,27 @@ export default function MapScreen() {
                 </View>
               )}
             </View>
-
+            {activeFieldIndex !== null && suggestions.length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                {suggestions.map((p) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={styles.suggestionRow}
+                    onPress={() => handleSelectSuggestion(activeFieldIndex, p)}
+                  >
+                    <Text style={styles.suggestionName}>{p.name}</Text>
+                    {!!p.tags && (
+                      <Text style={styles.suggestionMeta}>
+                        {p.tags.amenity ||
+                          p.tags.natural ||
+                          p.tags.tourism ||
+                          ""}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
             <View style={styles.searchFooterRow}>
               <TouchableOpacity
                 style={styles.startButton}
@@ -798,5 +920,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: LIGHT_BLUE,
     textAlign: "center",
+  },
+    suggestionsContainer: {
+    marginTop: 4,
+    maxHeight: 160,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: LIGHT_BLUE,
+    overflow: "hidden",
+  },
+  suggestionRow: {
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E0E0E0",
+  },
+  suggestionName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#000000",
+  },
+  suggestionMeta: {
+    fontSize: 11,
+    color: "#555555",
+    marginTop: 2,
   },
 });
