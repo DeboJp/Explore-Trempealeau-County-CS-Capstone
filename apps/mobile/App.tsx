@@ -29,10 +29,11 @@ function AppTabs() {
         initialRouteName="Explore"
         screenOptions={({ route }) => ({
           headerTitleStyle: { fontSize: 28, fontWeight: '500', paddingBottom: 20, backgroundColor: 'transparent' },
-          tabBarStyle: { position: 'absolute', borderRadius: 40, margin: 10, height: 90, backgroundColor: '#266AB1', color: '#E1EDFF', paddingTop: 16},
-          tabBarLabel: ({ focused }) => (
-            focused ? <Text style={{ fontSize: 16, color: '#E1EDFF', fontWeight: '500', paddingTop: 20, borderBottomWidth: 3, borderBottomColor: '#E1EDFF', paddingBottom: 8 }}>{route.name}</Text> : <Text style={{ fontSize: 16, color: '#E1EDFF', fontWeight: '500', paddingTop: 24, paddingBottom: 4 }}>{route.name}</Text>
-          ),
+          tabBarStyle: { position: 'absolute', borderRadius: 40, margin: 10, height: 90, backgroundColor: '#266AB1', color: '#E1EDFF', paddingTop: 0, paddingBottom: 0},
+          // tabBarLabel: ({ focused }) => (
+          //   focused ? <Text style={{ fontSize: 16, color: '#E1EDFF', fontWeight: '500', paddingTop: 20, borderBottomWidth: 3, borderBottomColor: '#E1EDFF', paddingBottom: 8 }}>{route.name}</Text> : <Text style={{ fontSize: 16, color: '#E1EDFF', fontWeight: '500', paddingTop: 24, paddingBottom: 4 }}>{route.name}</Text>
+          // ),
+          tabBarShowLabel: false,
           tabBarIcon: ({ focused }) => {
             let iconUrl;
             if (route.name === 'Explore') {
@@ -43,10 +44,13 @@ function AppTabs() {
               iconUrl = Icons.GetIcon('location-pin-white');
             }
             return (
-              <Image 
-                source={iconUrl} 
-                style={{ width: 30, height: 30, marginTop: 50, marginBottom: 40, tintColor: '#FFF', opacity: focused ? 1 : 0.8 }}
-              />
+              <View style={{alignItems: 'center', justifyContent: 'center', flexDirection: 'column', backgroundColor: focused ? 'rgba(255, 255, 255, 0.2)' : 'transparent', paddingVertical: 10, width: 100, borderRadius: 40, transform: [{ scale: focused ? 1.05 : 1 }]}}>                
+                <Image 
+                  source={iconUrl} 
+                  style={{ width: focused ? 28 : 24, height: focused ? 28 : 24, marginBottom: 4, tintColor: '#FFF', opacity: focused ? 1 : 0.8 }}
+                />
+                <Text style={{ fontSize: 16, color: '#E1EDFF', fontWeight: '500'}}> {route.name} </Text>
+              </View>
             );
           }
         })}
