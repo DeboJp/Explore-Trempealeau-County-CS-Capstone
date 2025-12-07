@@ -4,9 +4,10 @@ import {StyleSheet, View, Text, TouchableOpacity, TextInput, KeyboardAvoidingVie
 import MapView, { Marker, Region, Polyline, Polygon } from "react-native-maps";
 import markersData from "../lib/markers.json";
 import places from "../lib/searchLocIndex.json";
+import * as Location from "expo-location";
 
 // Base URL for your routing backend - ignore this, this is my local wifi IP port forwarding lol
-const API_BASE = "http://10.140.59.162:8000";
+const API_BASE = "http://192.168.1.229:8000";
 
 // Default map camera region
 const INITIAL_REGION = {
@@ -14,15 +15,6 @@ const INITIAL_REGION = {
   longitude: -91.4346,
   latitudeDelta: 0.03,
   longitudeDelta: 0.03,
-};
-
-// Bounding box to restrict map panning
-const delta = 1;
-const TREMP_BOUNDS = {
-  minLat: 43.983886 - delta,
-  maxLat: 44.597192 + delta,
-  minLng: -91.614620 - delta,
-  maxLng: -91.150042 + delta,
 };
 
 // Simple shared types
@@ -96,6 +88,9 @@ export default function MapScreen() {
   const [stops, setStops] = useState<Coordinate[]>([]);
   // Route polyline from OSRM
   const [routeCoords, setRouteCoords] = useState<Coordinate[]>([]);
+  // Store previous view + toggle state for "jump to user" button
+  const [savedRegion, setSavedRegion] = useState<Region | null>(null);
+  const [showingUserView, setShowingUserView] = useState(false);
   // Short summary of the current route
   const [routeInfo, setRouteInfo] = useState<{
     distanceKm: string;
@@ -145,15 +140,19 @@ export default function MapScreen() {
     };
   }, []);
 
-  // Ensure map region stays within Trempealeau County
-  const clampRegion = (region: Region): Region => {
-    let { latitude, longitude, latitudeDelta, longitudeDelta } = region;
-
-    latitude = Math.min(TREMP_BOUNDS.maxLat, Math.max(TREMP_BOUNDS.minLat, latitude));
-    longitude = Math.min(TREMP_BOUNDS.maxLng, Math.max(TREMP_BOUNDS.minLng, longitude));
-
-    return { latitude, longitude, latitudeDelta, longitudeDelta };
-  };
+    // Ask for foreground location permission so the blue dot can show
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          console.log("Location permission not granted");
+        }
+      } catch (e) {
+        console.log("Error requesting location permission", e);
+      }
+    })();
+  }, []);
 
   // Get stroke style for route polylines
   const getStrokeStyle = (): StrokeStyle => {
@@ -186,6 +185,40 @@ export default function MapScreen() {
     longitude: coord[0],
   });
 
+  // Toggle between current screen view and user's current location
+  const handleToggleUserView = async () => {
+    if (!mapRef.current) return;
+
+    try {
+      if (!showingUserView) {
+        // We are in "normal" view -> save it and jump to user
+        setSavedRegion(mapRegion);
+
+        const loc = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude } = loc.coords;
+
+        mapRef.current.animateToRegion(
+          {
+            latitude,
+            longitude,
+            latitudeDelta: mapRegion.latitudeDelta,
+            longitudeDelta: mapRegion.longitudeDelta,
+          },
+          500
+        );
+
+        setShowingUserView(true);
+      } else {
+        // We are in "user view" -> go back to saved view (if any)
+        if (savedRegion) {
+          mapRef.current.animateToRegion(savedRegion, 500);
+        }
+        setShowingUserView(false);
+      }
+    } catch (e) {
+      console.log("Error toggling user view", e);
+    }
+  };
 
   // Zoom/pan map to show entire route
   const fitRouteOnMap = (coords: Coordinate[]) => {
@@ -350,7 +383,7 @@ export default function MapScreen() {
           next[1] = coord; 
         }
       }
-
+      fitRouteOnMap(next);
       return next;
     });
 
@@ -422,8 +455,11 @@ export default function MapScreen() {
         style={StyleSheet.absoluteFill}
         mapType={mapType}
         region={mapRegion}
-        onRegionChangeComplete={(r) => setMapRegion(clampRegion(r))}
+        onRegionChangeComplete={(r) => setMapRegion(r)}
         onLongPress={onMapLongPress}
+        showsUserLocation={true}
+        followsUserLocation={true? showingUserView : false}   
+        showsMyLocationButton={true}
       >
         {stops.map((p, idx) => (
           <Marker
@@ -626,7 +662,22 @@ export default function MapScreen() {
         >
           {/* Top bar over map */}
           <View style={styles.optionsBar}>
-            <TouchableOpacity style={styles.layersButton} onPress={openLayers}>
+            <TouchableOpacity
+              style={[
+                styles.layersButton,
+                showingUserView && styles.layersButtonActive,
+              ]}
+              onPress={handleToggleUserView}
+            >
+              <Text style={styles.layersButtonText}>
+                {showingUserView ? "Back" : "Me"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.layersButton, { marginLeft: 8 }]}
+              onPress={openLayers}
+            >
               <Text style={styles.layersButtonText}>Layers</Text>
             </TouchableOpacity>
 
@@ -857,6 +908,9 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY_BLUE,
     justifyContent: "center",
     alignItems: "center",
+  },
+  layersButtonActive: {
+    backgroundColor: LIGHT_BLUE,
   },
   layersButtonText: {
     color: "#FFFFFF",
