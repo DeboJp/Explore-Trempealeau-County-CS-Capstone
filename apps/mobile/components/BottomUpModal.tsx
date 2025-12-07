@@ -1,4 +1,4 @@
-// original source: https://medium.com/@ndyhrdy/making-the-bottom-sheet-modal-using-react-native-e226a30bed13 🙇
+// original source: https://medium.com/@ndyhrdy/making-the-bottom-sheet-modal-using-react-native-e226a30bed13
 import React, {useEffect, useRef} from 'react';
 import {
   Animated,
