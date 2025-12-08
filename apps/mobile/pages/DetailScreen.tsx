@@ -83,16 +83,26 @@ export default function DetailScreen({route}: {route: any}) {
                 </View>
                 {/* Activity type tags */}
                 {location?.activityTags && (
-                    <ScrollView horizontal={true} contentContainerStyle={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8}}>
+                    <ScrollView horizontal={true} contentContainerStyle={{flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, justifyContent: 'center'}}>
                         {location.activityTags.map(tag => (
-                            <View key={tag} style={{backgroundColor: '#D9D9D9', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 30}}>
-                                <Text style={{color: 'black', fontSize: 18}}>{tag}</Text>
-                            </View>
+                            <Pressable
+                                key={tag}
+                                onPress={() => (navigation as any).navigate('TagResults', { tag })}
+                                style={({pressed}) => [{
+                                    backgroundColor: pressed ? '#155d13' : '#1F741B',
+                                    paddingVertical: 6,
+                                    paddingHorizontal: 14,
+                                    borderRadius: 30,
+                                    marginRight: 8,
+                                }]}
+                            >
+                                <Text style={{color: '#FFFFFF', fontSize: 16}}>{tag}</Text>
+                            </Pressable>
                         ))}
                     </ScrollView>
                 )}
-                <Text style={{ color: 'black', fontSize: 20, fontWeight: '400', marginTop: 8 }}>{location.city && location.city.length > 0 ? location.city : 'Trempealeau County'}, WI</Text>
-                <Text style={{ color: 'black', fontSize: 16, marginTop: 8 }}>{location.description}</Text>
+                <Text style={{ color: 'black', fontSize: 20, fontWeight: '400', marginTop: 8, padding: 8, backgroundColor: '#F6F6F6' }}>{location.city && location.city.length > 0 ? location.city : 'Trempealeau County'}, WI</Text>
+                <Text style={{ color: 'black', fontSize: 16, backgroundColor: '#F6F6F6', padding: 8 }}>{location.description}</Text>
             </View>
         )}
         {/*Add button*/}
@@ -121,7 +131,7 @@ export default function DetailScreen({route}: {route: any}) {
                 <ScrollView contentContainerStyle={{display: 'flex', flexDirection: 'row', gap: 16}} horizontal={true}>
                     {/* Map through nearby locations and render LocationTile components */}
                     {nearby.map((loc) => (
-                        <LocationTile key={loc.id} locationId={loc.id} title={loc.name} category={loc.type} subtitle={loc.city} description={loc.description} backgroundImg={loc.image ?? ""} onPress={() => {navigation.navigate('Details', { locationId: loc.id })}} distance={loc.parent_location_id != null && loc.approxDistFromParent ? loc.approxDistFromParent : undefined} />
+                        <LocationTile key={loc.id} locationId={loc.id} title={loc.name} category={loc.type} subtitle={loc.city} description={loc.description} backgroundImg={loc.image ?? ""} onPress={() => {(navigation as any).navigate('Details', { locationId: loc.id })}} distance={loc.parent_location_id != null && loc.approxDistFromParent ? loc.approxDistFromParent : undefined} />
                     ))}
                 </ScrollView>
             </View>
