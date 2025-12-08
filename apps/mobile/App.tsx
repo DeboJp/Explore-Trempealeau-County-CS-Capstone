@@ -68,7 +68,17 @@ export default function App() {
           headerTitle: getHeaderTitle(route), headerShown: false,
         })}/>
         {/*Pages not included in tabs go here (Detail, Filter, etc.) */}
-        <Stack.Screen name="Details" component={DetailScreen} options={{headerTransparent: true, headerTitleStyle: { fontSize: 28, fontWeight: '500'}}}/>
+        <Stack.Screen
+          name="Details"
+          component={DetailScreen}
+          options={() => ({
+            headerTransparent: true,
+            headerTitleStyle: { fontSize: 28, fontWeight: '500' },
+            headerBackground: () => (
+              <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.6)' }} />
+            ),
+          })}
+        />
         <Stack.Screen name="Results" component={ResultsScreen} options={({route}) => ({title: route.params.title ?? 'Results', headerTransparent: true, headerTitleStyle: { fontSize: 28, fontWeight: '500'}})}/>
       </Stack.Navigator>
     </NavigationContainer>
