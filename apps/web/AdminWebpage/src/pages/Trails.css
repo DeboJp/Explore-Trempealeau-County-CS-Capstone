@@ -1,0 +1,478 @@
+.trail-layout {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.trail-header h1 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.trail-header p {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* Tabs */
+.trail-tabs {
+  display: inline-flex;
+  gap: 4px;
+  border-bottom: 1px solid #ddd;
+  margin-top: 8px;
+}
+
+.tab-button {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  color: #555;
+}
+
+.tab-button.active {
+  background: #f3f4ff;
+  color: #111827;
+  border: 1px solid #cbd5f5;
+  border-bottom-color: #f3f4ff;
+}
+
+.tab-panel {
+  margin-top: 10px;
+}
+
+/* Columns inside each tab */
+.tab-columns {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+@media (max-width: 900px) {
+  .tab-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Cards */
+.card {
+  background: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.subtitle {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+/* Buttons */
+.primary-btn {
+  margin-top: 6px;
+  align-self: flex-start;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 6px;
+  border: none;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.primary-btn:disabled {
+  background: #cbd5f5;
+  cursor: default;
+}
+
+.primary-btn:not(:disabled):hover {
+  background: #1d4ed8;
+}
+
+.secondary-btn {
+  background: #e5e7eb;
+  color: #111827;
+  border-radius: 6px;
+  border: none;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* File drop */
+.file-drop {
+  border: 1px dashed #bbb;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  background: #fdfdfd;
+  text-align: center;
+  cursor: pointer;
+}
+
+.file-drop.small {
+  padding: 0.4rem 0.6rem;
+}
+
+.file-drop input {
+  display: none;
+}
+
+/* File list */
+.file-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.file-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.file-name {
+  font-weight: 500;
+}
+
+.file-size {
+  color: #777;
+}
+
+/* Inputs + labels */
+.label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #444;
+}
+
+.label.small {
+  font-size: 0.78rem;
+}
+
+input[type="text"],
+select,
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+textarea {
+  resize: vertical;
+}
+
+/* Tables */
+.existing-table-wrapper,
+.marker-list-wrapper {
+  max-height: 180px;
+  overflow: auto;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  background: #fff;
+}
+
+.simple-table,
+.marker-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.simple-table th,
+.simple-table td,
+.marker-table th,
+.marker-table td {
+  padding: 0.35rem 0.45rem;
+  border-bottom: 1px solid #f2f2f2;
+  text-align: left;
+}
+
+.row-selected {
+  background: #e5f0ff;
+}
+
+/* Marker form */
+.marker-form {
+  border-radius: 8px;
+  border: 1px solid #eee;
+  padding: 0.6rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.marker-coords {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Import row */
+.import-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+.file-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eee;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.file-mini input {
+  display: none;
+}
+
+/* Marker table */
+.marker-actions {
+  text-align: right;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 0.78rem;
+  padding: 0;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.link-btn.danger {
+  color: #dc2626;
+}
+
+/* JSON preview */
+.json-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.json-preview {
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 0.8rem;
+}
+
+/* Diff controls */
+.diff-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+}
+
+.diff-selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.diff-selects select {
+  flex: 1 1 140px;
+}
+
+/* Map preview */
+.markers-layout {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.1fr);
+}
+
+.marker-map {
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  height: 260px;
+}
+
+.marker-map.empty {
+  align-items: center;
+  justify-content: center;
+  color: #777;
+  font-size: 0.85rem;
+}
+
+.marker-map-header {
+  padding: 6px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 0.8rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.marker-map-title {
+  font-weight: 500;
+}
+
+.marker-map-coords {
+  color: #4b5563;
+}
+
+.marker-map iframe {
+  border: 0;
+  flex: 1;
+  width: 100%;
+}
+
+/* Routing */
+.routing-summary {
+  font-size: 0.8rem;
+}
+
+.routing-name {
+  font-weight: 500;
+}
+
+.routing-meta {
+  color: #777;
+  font-size: 0.78rem;
+}
+
+/* Misc */
+.hint {
+  font-size: 0.8rem;
+  color: #777;
+}
+
+.markers-two-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 10px;
+}
+
+.markers-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.geo-diff-panel {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.geo-diff-meta {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.geo-diff-file {
+  font-weight: 600;
+}
+
+.geo-diff-count {
+  font-size: 12px;
+  color: #555;
+}
+
+.geo-diff-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.geo-diff-grid h4 {
+  font-size: 13px;
+  margin: 0 0 4px;
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid transparent;
+}
+
+.chip-new {
+  background: #e3f2fd;
+  border-color: #90caf9;
+}
+
+.chip-missing {
+  background: #ffebee;
+  border-color: #ef9a9a;
+}
+
+.chip-shared {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+}
+.geo-diff-features {
+  margin-top: 8px;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 8px;
+}
+
+.geo-diff-features-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.feature-list {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.feature-list li {
+  font-size: 12px;
+}
+
+.feature-id {
+  margin-left: 4px;
+  font-size: 11px;
+  color: #666;
+}
