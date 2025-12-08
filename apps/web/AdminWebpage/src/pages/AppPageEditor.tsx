@@ -305,6 +305,7 @@ function AppPageEditor() {
                       <option value="Hiking">Hiking</option>
                       <option value="Fishing">Fishing</option>
                       <option value="Camping">Camping</option>
+                      <option value="Biking">Biking</option>
                       <option value="Shopping">Shopping</option>
                     </select>
                   </div>

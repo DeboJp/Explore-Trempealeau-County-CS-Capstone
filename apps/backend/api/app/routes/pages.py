@@ -79,7 +79,7 @@ async def search_pages(
     repo: PageRepository = Depends(get_repository)
 ):
     """Search pages by title or description"""
-    pages = repo.search_pages(search_term=q, city=city, type=type, published=published, limit=limit)
+    pages = repo.search_pages(search_term=q, city=city, type=type, published=published, tag=tag, limit=limit)
     return {
         "pages": [PageResponse(**page) for page in pages]
     }

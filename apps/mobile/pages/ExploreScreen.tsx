@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import React from 'react'
 import { View, ScrollView, Text, Button, TouchableOpacity } from 'react-native'
 import CategoryTile from '../components/CategoryTile';
@@ -5,11 +6,23 @@ import LocationTile from '../components/LocationTile';
 import SearchBar from '../components/SearchBar';
 import locations from '../assets/ts/locations';
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import Constants from 'expo-constants';
+
+interface Page {
+  id: number;
+  title: string;
+  city: string;
+  type: string;
+  description: string;
+  image: string;
+  tags: string;
+}
+
 
 export default function ExploreScreen() {
   const navigation = useNavigation();
 
+  const [pages, setPages] = useState<Page[]>();
   const [searchText, setSearchText] = useState<string>("");
   const [page, setPage] = useState<number>(1);
   const itemsPerPage = 5;
@@ -17,7 +30,7 @@ export default function ExploreScreen() {
   const [suggestions, setSuggestions] = useState<typeof locations>([]);
 
   // derive unique cities from dataset
-  const cities = Array.from(new Set(locations.map(l => (l.city || '').trim()).filter(Boolean)));
+  const cities = Array.from(new Set(pages?.map(l => (l.city || '').trim()).filter(Boolean)));
 
   // basic Levenshtein distance for small fuzzy matching
   const levenshtein = (a: string, b: string) => {
@@ -77,6 +90,38 @@ export default function ExploreScreen() {
 
     setSuggestions(combined.slice(0, 8));
   };
+
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+      const API_URL = Constants?.expoConfig?.extra?.api.base_url + '/pages/published';
+      try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        // Assuming the API returns an array of locations
+        // setLocations(data.locations);
+        let locationsResponse: Page[] = [];
+        data.pages.map((page: any) => {
+          // parse JSON from page.pageContent
+          const content = JSON.parse(page.pageContent);
+          locationsResponse.push({
+            id: page.id,
+            title: page.title,
+            city: content.city || '',
+            type: content.type || '',
+            description: content.description || '',
+            image: content.image || '',
+            tags: content.activityTags || [],
+          });
+        });
+        setPages(locationsResponse);
+        console.log('Fetched locations:', locationsResponse);
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+      }
+    };
+    fetchLocations();
+  }, []);
 
 
   const getPaginatedLocations = () => {
@@ -175,17 +220,17 @@ export default function ExploreScreen() {
               key={`city-tile-${c}`}
               onPress={() => (navigation as any).navigate('Results', { results: locations.filter(l => (l.city || '').toLowerCase() === (c || '').toLowerCase()), title: c })}
               style={{
-                backgroundColor: '#EFEFF4',
+                backgroundColor: '#14569A',
                 paddingHorizontal: 14,
                 paddingVertical: 8,
-                borderRadius: 20,
+                borderRadius: 2,
                 marginHorizontal: 6,
                 alignItems: 'center',
                 justifyContent: 'center',
                 minWidth: 88,
               }}
             >
-              <Text style={{ color: '#1f2937', fontSize: 14, fontWeight: '600' }}>{c}</Text>
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '400' }}>{c.slice(0,1).toUpperCase() + c.slice(1)}</Text>
             </TouchableOpacity>
           ))}
       </ScrollView>
@@ -194,32 +239,67 @@ export default function ExploreScreen() {
     <Text style={{ textAlign: "left", fontSize: 24, marginBottom: 8, paddingTop: 16, paddingBottom: 8, fontWeight: 500 }}>Categories</Text>
     <View style={{ display: 'flex', alignItems: 'center' }}>
       <ScrollView contentContainerStyle={{ alignItems: 'center' }} horizontal={true}>
-        <CategoryTile title="Hiking" icon="hiking" onPress={() => { (navigation as any).navigate('Results', { results: locations.filter(loc => loc.type === 'Hike' || (loc.activityTags || []).includes('Hiking') || loc.type === 'Park'), title: 'Hiking' }) }} />
-        <CategoryTile title="Biking" icon="biking" onPress={() => { (navigation as any).navigate('Results', { results: locations.filter(loc => loc.type === 'Bike' || (loc.activityTags || []).includes('Biking')), title: 'Biking' }) }} />
-        <CategoryTile title="Water" icon="water" onPress={() => { (navigation as any).navigate('Results', { results: locations.filter(loc => loc.type === 'Water' || (loc.activityTags || []).includes('Boating') || (loc.activityTags || []).includes('Fishing')), title: 'Water Access' }) }} />
-        <CategoryTile title="Shop" icon="business" onPress={() => { (navigation as any).navigate('Results', { results: locations.filter(loc => loc.type === 'Business' || loc.type === 'Shop'), title: 'Shops' }) }} />
+        <CategoryTile title="Hiking" icon="hiking" onPress={async () => { 
+          const pages = await fetch(Constants?.expoConfig?.extra?.api.base_url + '/pages/search?published=True&tag=Hiking&limit=50')
+          let data = await pages.json()
+          const content = data.pages.map((page: any) => {
+            let j =  JSON.parse(page.pageContent);
+            return {...j, id: page.id};
+          });
+          console.log('Hiking pages:', content);
+          return (navigation as any).navigate('Results', { results: content, title: 'Hiking', category: 'Hiking' }) }} />
+        <CategoryTile title="Biking" icon="biking" onPress={async () => { 
+          const pages = await fetch(Constants?.expoConfig?.extra?.api.base_url + '/pages/search?published=True&tag=Biking&limit=50')
+          let data = await pages.json()
+          const content = data.pages.map((page: any) => {
+            let j =  JSON.parse(page.pageContent);
+            return {...j, id: page.id};
+          });
+          return (navigation as any).navigate('Results', { results: content, title: 'Biking', category: 'Biking' }) 
+        }} />
+        <CategoryTile title="Water" icon="water" onPress={async () => { 
+          const pages = await fetch(Constants?.expoConfig?.extra?.api.base_url + '/pages/search?published=True&tag=Water&limit=50')
+          let data = await pages.json()
+          const content = data.pages.map((page: any) => {
+            let j =  JSON.parse(page.pageContent);
+            return {...j, id: page.id};
+          });
+          return (navigation as any).navigate('Results', { results: content, title: 'Water Access', category: 'Water'}) 
+        }} />
+        <CategoryTile title="Shop" icon="business" onPress={async () => { 
+          const pages = await fetch(Constants?.expoConfig?.extra?.api.base_url + '/pages/search?published=True&tag=Shop&limit=50')
+          let data = await pages.json()
+          const content = data.pages.map((page: any) => {
+            let j =  JSON.parse(page.pageContent);
+            return {...j, id: page.id};
+          });
+          return (navigation as any).navigate('Results', { results: content, title: 'Shops', category: 'Shop' }) }} />
+          <CategoryTile title="Camping" icon="camping" onPress={async () => { 
+          const pages = await fetch(Constants?.expoConfig?.extra?.api.base_url + '/pages/search?published=True&tag=Camping&limit=50')
+          let data = await pages.json()
+          const content = data.pages.map((page: any) => {
+            let j =  JSON.parse(page.pageContent);
+            return {...j, id: page.id};
+          });
+          return (navigation as any).navigate('Results', { results: content, title: 'Camping', category: 'Camping' }) }} />
       </ScrollView>
     </View>
 
-    <Text style={{ textAlign: "left", fontSize: 24, marginBottom: 16 }}>Featured</Text>
+    <Text style={{ textAlign: "left", fontSize: 24, marginBottom: 16, fontFamily: 'ITC Avant Garde Gothic' }}>Featured</Text>
     <ScrollView contentContainerStyle={{ alignItems: 'center' }} horizontal={true}>
-          {paginatedLocations.map((loc) => (
+      {pages && pages.map((loc) => (
         <LocationTile
           key={loc.id}
           locationId={loc.id}
-          title={loc.name}
+          title={loc.title}
           category={loc.type}
-          subtitle={loc.city}
-          description={loc.description}
-              backgroundImg={loc.image || ''}
-              onPress={() => { (navigation as any).navigate('Details', { locationId: loc.id }) }}
+          subtitle={loc.city.slice(0,1).toUpperCase() + loc.city.slice(1)}
+          description={loc.description.split('.')[0] + '.'}
+              backgroundImg={loc.image}
+              onPress={() => { (navigation as any).navigate('Details', { locationId: loc.id, title: loc.title }) }}
         />
       ))}
     </ScrollView>
-
-    {paginatedLocations.length < locations.length && (
-      <Button title="Load More" onPress={handleLoadMore} />
-    )}
 
   </ScrollView>
 }

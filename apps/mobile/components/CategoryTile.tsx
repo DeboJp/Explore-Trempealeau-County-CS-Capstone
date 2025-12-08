@@ -37,5 +37,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         flexShrink: 1,
         fontSize: 16,
+        fontFamily: 'DM Sans',
     },
 });

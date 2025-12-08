@@ -26,6 +26,10 @@ export class Icons {
       image: require('../media-library/icons/business.png'),
     },
     {
+      name: 'camping',
+      image: require('../media-library/icons/camping.png'),
+    },
+    {
       name: 'globe',
       image: require('../media-library/icons/globe-solid-full.png'),
     },

@@ -53,6 +53,7 @@ function Analytics() {
             if(!(item.page in pageCounts)){
               const isToday = new Date(item.timestamp * 1000).toDateString() === new Date().toDateString();
               pageCounts[item.page] = {today: isToday ? item.count : 0, past7: 0};
+              pageCounts[item.page].past7 += item.count;
             }
             else {
               const isToday = new Date(item.timestamp * 1000).toDateString() === new Date().toDateString();
