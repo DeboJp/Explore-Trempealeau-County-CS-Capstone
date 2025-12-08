@@ -274,7 +274,7 @@ class PageRepository(Repository):
             response = None
             if not city and not type:
                 if not search_term or search_term.strip() == "":
-                    print("Searching all pages that are published")
+                    print("Searching all pages that are published", "tag:", tag)
                     if published:
                         if tag:
                             response = self.table.scan(
