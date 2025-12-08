@@ -515,7 +515,7 @@ export default function MapScreen() {
       return next;
     });
 
-
+    // Feature → highlight + zoom to bbox
     if (place.type === "feature" && place.source) {
       const indices =
         place.ref_indices && place.ref_indices.length
@@ -523,7 +523,8 @@ export default function MapScreen() {
           : place.ref_index != null
           ? [place.ref_index]
           : [];
-      // Feature → highlight + zoom to bbox
+
+      // update highlight for THIS field, keep others (so Start + Dest can both show)
       setHighlights((prev) => {
         const others = prev.filter((h) => h.fieldIndex !== fieldIndex);
         if (!indices.length) return others;
