@@ -201,6 +201,26 @@ async def get_page_count(
     count = repo.get_count_pages()
     return {"count": count}
 
+@router.get(
+    "/exists",
+    response_model=dict,
+    summary="Check if a page with the given gisID exists and return it",
+)
+async def check_page_exists(
+    gis_id: str = Query(..., description="GIS ID to check"),
+    repo: PageRepository = Depends(get_repository),
+):
+    """
+    Return whether a page exists for this gisID and, if so, the page item.
+    """
+    page = repo.get_page_by_gis_id(gis_id)
+
+    return {
+        "gisID": gis_id,
+        "exists": page is not None,
+        "page": page,     # either the item dict or None
+    }
+
 @router.post("/generate-upload-url")
 # Ensure you verify the user is logged in here using your existing dependency
 async def generate_upload_url(req: UploadRequest, 

@@ -101,6 +101,25 @@ class PageRepository(Repository):
                 detail=f"Error counting pages: {str(e)}"
             )
 
+    def get_page_by_gis_id(self, gis_id: str) -> Optional[dict]:
+        """Return the first page matching this gisId using the GSI, or None."""
+        try:
+            resp = self.table.query(
+                IndexName="gisID-index",
+                KeyConditionExpression=Key("gisId").eq(gis_id),
+                Limit=1,
+            )
+            items = resp.get("Items", [])
+            if not items:
+                return None
+            # Convert Decimal -> int/float for JSON
+            return self._convert_decimals(items[0])
+        except ClientError as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error checking gisId: {str(e)}"
+            )
+
     def list_pages(
         self, 
         limit: int = 50,

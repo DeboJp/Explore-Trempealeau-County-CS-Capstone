@@ -267,9 +267,9 @@ export default function MapScreen() {
             <Polygon
               key={`hl-poly-${hl.source}-${idx}-${rIdx}`}
               coordinates={ring.map(toLatLng)}
-              strokeColor="#14569A"
+              strokeColor="#2187edff"
               strokeWidth={4}
-              fillColor="#D9D9D9"
+              fillColor="#60affd98"
             />
           ));
         }
@@ -283,7 +283,7 @@ export default function MapScreen() {
             <Polyline
               key={`hl-line-${hl.source}-${idx}-${sIdx}`}
               coordinates={seg.map(toLatLng)}
-              strokeColor="#14569A"
+              strokeColor="#2187edff"
               strokeWidth={5}
             />
           ));
@@ -301,7 +301,7 @@ export default function MapScreen() {
                 f.properties?.Label_Proper ||
                 hl.source
               }
-              pinColor="#14569A"
+              pinColor="#2187edff"
             />,
           ];
         }
@@ -465,6 +465,7 @@ export default function MapScreen() {
   // Handle selecting a suggestion from the dropdown
   const handleSelectSuggestion = (fieldIndex: number, place: Place) => {
     const coord: Coordinate = { latitude: place.lat, longitude: place.lon };
+    const lastFieldIndex = searchInputs.length - 1;
 
     // Put the label into the field
     setSearchInputs((prev) => {
@@ -480,26 +481,35 @@ export default function MapScreen() {
     setRouteInfo(null);
     Keyboard.dismiss();
 
-    // Update stops, but don't fit map here
+    // - first text box (index 0) -> stops[0]
+    // - last text box (Destination) -> stops[1]
+    // - middle boxes: ignored for now
     setStops((prev) => {
-      let next = [...prev];
+      const next = [...prev];
 
       if (fieldIndex === 0) {
+        // "Start"
         if (next.length === 0) {
-          next = [coord];
-        } else if (next.length === 1) {
-          next = [coord, next[0]];
-        } else {
+          return [coord];               // only start set
+        }
+        if (next.length === 1) {
           next[0] = coord;
+          return next;
         }
-      } else {
+        next[0] = coord;
+        return next;
+      }
+
+      if (fieldIndex === lastFieldIndex) {
+        // "Destination"
         if (next.length === 0) {
-          next = [coord];
-        } else if (next.length === 1) {
-          next.push(coord);
-        } else {
-          next[1] = coord;
+          return [coord];
         }
+        if (next.length === 1) {
+          return [next[0], coord];
+        }
+        next[1] = coord;
+        return next;
       }
 
       return next;
