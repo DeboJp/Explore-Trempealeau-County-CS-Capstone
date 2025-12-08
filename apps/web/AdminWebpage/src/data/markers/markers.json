@@ -1,0 +1,14 @@
+[
+  {
+    "id": "perrot_trailhead",
+    "title": "Perrot State Park Trailhead",
+    "lat": 44.0108,
+    "lon": -91.4441
+  },
+  {
+    "id": "tremp_boat_launch",
+    "title": "Trempealeau River Boat Launch",
+    "lat": 44.0032,
+    "lon": -91.4387
+  }
+]
