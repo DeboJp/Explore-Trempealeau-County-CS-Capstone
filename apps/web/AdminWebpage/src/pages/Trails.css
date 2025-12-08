@@ -448,3 +448,31 @@ textarea {
   background: #e8f5e9;
   border-color: #a5d6a7;
 }
+.geo-diff-features {
+  margin-top: 8px;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 8px;
+}
+
+.geo-diff-features-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.feature-list {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.feature-list li {
+  font-size: 12px;
+}
+
+.feature-id {
+  margin-left: 4px;
+  font-size: 11px;
+  color: #666;
+}
