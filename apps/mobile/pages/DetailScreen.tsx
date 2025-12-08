@@ -8,6 +8,7 @@ import locations from '../assets/ts/locations';
 import { isSaved as storeIsSaved, toggleSaved as storeToggle } from '../lib/savedStore';
 import { Icons } from '../assets/ts/icons';
 import Constants from 'expo-constants';
+import { fetchNearbyPagesForGisId } from "../lib/fetchNearbyPages";
 
 interface DetailScreenProps {
     title: string;
@@ -20,13 +21,13 @@ export default function DetailScreen({route}: {route: any}) {
     const [focusedContent, setFocusedContent] = useState<any>(null);
     // Local state to track whether this location is currently saved
     const [saved, setSaved] = useState(false);
+    const [nearbyPages, setNearbyPages] = useState<any[]>([]);
     // When the screen loads or location changes, check if it's already saved
     useEffect(() => {
         async function fetchLocation() {
             console.log(`${Constants.expoConfig.extra?.api.base_url}/pages/published/${locationId}/${encodeURIComponent(title)}`)
             const response = await fetch(`${Constants.expoConfig.extra?.api.base_url}/pages/published/${locationId}/${encodeURIComponent(title)}`);
             const data = await response.json();
-            console.log("Fetched location data:", JSON.parse(data.pageContent));
             setLocation(JSON.parse(data.pageContent));
         }
         fetchLocation();
@@ -56,7 +57,18 @@ export default function DetailScreen({route}: {route: any}) {
     // Fetch location data based on locationId prop
     
     // TODO: Get image from assets based on location data
-    // TODO: Get nearby locations based on lat/lon of location data), with parent (if applicable)
+    useEffect(() => {
+        const fetchNearby = async () => {
+            if (location) {
+                const result = await fetchNearbyPagesForGisId(location.gisId, 5, 3);
+                const nearbyList = Object.values(result).filter((loc) => loc.id !== location.id && loc.published)
+                    .map((location) => location.pageContent ? JSON.parse(location.pageContent) : null);
+                console.log("Nearby locations fetched:", nearbyList);
+                setNearbyPages(nearbyList);
+            }
+        };
+        fetchNearby();
+    }, [location]);
     // TODO: Integrate with map to redirect with lat/lon, estimate distance to
     const backgroundImage = { uri: location?.image || ''};
     if (!location) {
@@ -196,13 +208,13 @@ export default function DetailScreen({route}: {route: any}) {
                 ))}
             </View>
         )}
-        {nearby && nearby?.length > 0 && (
+        {nearbyPages && nearbyPages.length > 0 && (
             <View style={{alignItems: 'flex-start', paddingHorizontal: 12}}>
                 <Text style={{textAlign: 'left', fontSize: 20, fontWeight: '500', marginTop: 24, marginBottom: 8}}>Nearby Locations</Text>
                 <ScrollView contentContainerStyle={{display: 'flex', flexDirection: 'row', gap: 16}} horizontal={true}>
                     {/* Map through nearby locations and render LocationTile components */}
-                    {nearby?.map((loc) => (
-                        <LocationTile key={loc.id} locationId={loc.id} title={loc.name} category={loc.type} subtitle={loc.city} description={loc.description} backgroundImg={loc.image ?? ""} onPress={() => {(navigation as any).navigate('Details', { locationId: loc.id })}} distance={loc.parent_location_id != null && loc.approxDistFromParent ? loc.approxDistFromParent : undefined} />
+                    {nearbyPages.map((loc) => (
+                        <LocationTile key={loc.id} locationId={loc.id} title={loc.title} category={loc.type} subtitle={loc.city.slice(0,1).toUpperCase() + loc.city.slice(1)} description={loc.description.split(".")[0]+"."} backgroundImg={loc.image ?? ""} onPress={() => {(navigation as any).navigate('Details', { locationId: loc.id })}} />
                     ))}
                 </ScrollView>
             </View>

@@ -32,7 +32,7 @@ const tagColor = (difficulty: null | 'Easy' | 'Moderate' | 'Hard') => {
   }
 }
 
-export default function LocationTile({ locationId,title, category, subtitle, description, difficulty, distance, backgroundImg, onPress }: LocationTileProps) {
+export default function LocationTile({ key, locationId,title, category, subtitle, description, difficulty, distance, backgroundImg, onPress }: LocationTileProps) {
   const [openModal, setOpenModal] = useState<boolean>(false);
 
   const onOpen = () => {
@@ -50,7 +50,7 @@ export default function LocationTile({ locationId,title, category, subtitle, des
   // backgroundImg comes in as a string URL
   const backgroundImage = { uri: backgroundImg };
     return (
-      <View>
+      <View key={locationId}>
       <TouchableOpacity onPress={onOpen}>
         <View style={{...styles.container}}>
             <ImageBackground source={backgroundImage} style={{...StyleSheet.absoluteFillObject, width: '100%'}} resizeMode="cover">
