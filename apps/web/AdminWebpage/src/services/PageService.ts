@@ -11,8 +11,8 @@ const PageService = {
     return response.json();
   },
 
-  async getPage(pageId: number, title: string) {
-    const response = await apiService.get(`/pages/${pageId}/${encodeURIComponent(title)}`).then(res => res.json());
+  async getPage(pageId: number, title: string, authorization?: string) {
+    const response = await apiService.get(`/pages/${pageId}/${encodeURIComponent(title)}`, authorization).then(res => res.json());
     return response;
   },
 

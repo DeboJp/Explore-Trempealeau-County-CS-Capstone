@@ -14,11 +14,14 @@ function Login() {
   };
 
   if (auth.isLoading) {
-    return <div>Loading...</div>;
+    return <main className="main-content">
+      You'll be redirected to the AWS Cognito sign-in page shortly...
+      If you are not redirected, please click <a href="#" onClick={() => auth.signinRedirect()}>here</a>.
+    </main>;
   }
 
   if (auth.error) {
-    return <div>Encountering error... {auth.error.message}</div>;
+    return <main className="main-content">Encountering error... {auth.error.message}</main>;
   }
 
   if (auth.isAuthenticated) {
@@ -38,10 +41,15 @@ function Login() {
   }
 
   return (
-    <div>
-      <button onClick={() => auth.signinRedirect()}>Sign in</button>
-      <button onClick={() => signOutRedirect()}>Sign out</button>
-    </div>
+    <main className="main-content">
+      <div className="flex flex-col flex--align-center flex--justify-center gap-4 w-75">
+        <h1>Welcome to the Trempealeau County Mobile Application Administration Portal!</h1>
+        <h3 style={{fontWeight: 400}}>If you are an administrator, or have been granted access through an administrator-created account, please choose the "Sign in" button below to log in.</h3>
+        <div className="w-75 flex flex--align-center flex--justify-center">
+          <button className="btn btn--primary" onClick={() => auth.signinRedirect()}>Sign in</button>
+        </div>
+      </div>
+    </main>
   );
     
 }

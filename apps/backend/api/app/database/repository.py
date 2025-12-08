@@ -68,7 +68,7 @@ class PageRepository(Repository):
                 detail=f"Error creating page: {str(e)}"
             )
     
-    def get_page(self, page_id: str, title: str) -> Optional[dict]:
+    def get_page(self, page_id: str, title: str, authorized: Optional[Dict] = None) -> Optional[dict]:
         """Get a single page by ID"""
         try:
             print(f"Fetching page with ID: {page_id} and Title: {title}")
@@ -80,6 +80,9 @@ class PageRepository(Repository):
             )
             print(response)
             page = response.get("Item")
+            if page and not page.get("published", False):
+                if not authorized:
+                    return None
             return self._convert_decimals(page) if page else None
         except ClientError as e:
             raise HTTPException(
@@ -152,7 +155,6 @@ class PageRepository(Repository):
     ) -> Optional[dict]:
         # Remove None values
         updates = {k: v for k, v in updates.items() if v is not None}
-        
         if not updates:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -263,6 +265,7 @@ class PageRepository(Repository):
         search_term: Optional[str] = "",
         city: Optional[str] = None,
         type: Optional[str] = None,
+        tag: Optional[str] = None,
         published: Optional[bool] = None,
         limit: int = 50
     ) -> List[dict]:
@@ -270,25 +273,39 @@ class PageRepository(Repository):
         try:
             response = None
             if not city and not type:
-                print("Searching all pages for term:", search_term)
-                if not published:
-                    response = self.table.scan(
-                        FilterExpression=(
-                            Attr("title").contains(search_term) | 
-                            Attr("pageContent").contains(search_term)
-                        ),
-                        Limit=limit
-                    )
+                if not search_term or search_term.strip() == "":
+                    print("Searching all pages that are published")
+                    if published:
+                        if tag:
+                            response = self.table.scan(
+                                FilterExpression=Attr("published").eq(True) & Attr("tags").contains(tag),
+                                Limit=limit
+                            )
+                        else:
+                            response = self.table.scan(
+                            FilterExpression=(
+                                Attr("published").eq(True)
+                            ),
+                            Limit=limit
+                        )
                 else:
-                    response = self.table.scan(
-                        FilterExpression=(
-                            (Attr("title").contains(search_term) | 
-                            Attr("pageContent").contains(search_term)) &
-                            Attr("published").eq(True)
-                        ),
-                        Limit=limit
-                    )
-                    
+                    if not published:
+                        response = self.table.scan(
+                            FilterExpression=(
+                                Attr("title").contains(search_term) | 
+                                Attr("pageContent").contains(search_term)
+                            ),
+                            Limit=limit
+                        )
+                    else:
+                        response = self.table.scan(
+                            FilterExpression=(
+                                (Attr("title").contains(search_term) | 
+                                Attr("pageContent").contains(search_term)) &
+                                Attr("published").eq(True)
+                            ),
+                            Limit=limit
+                        )
             elif city and not type:
                 print("Searching pages for city:", city)
                 if not search_term or len(search_term.strip()) == 0:

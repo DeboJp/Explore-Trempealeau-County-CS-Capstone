@@ -20,6 +20,7 @@ function Analytics() {
   const [currTablePage, setCurrTablePage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [tableData, setTableData] = useState<any>(null);
   const chartElement = document.getElementById('viewsPerDayChart') as HTMLCanvasElement;
   if (chartElement) {
     const chartInstance = Chart.getChart(chartElement);
@@ -31,6 +32,50 @@ function Analytics() {
 
   // Fetch analytics data from API
   useEffect(() => {
+    async function getAnalyticsSummaryData() {
+      try {
+        const start = new Date();
+        start.setDate(new Date().getDate() - 7);
+        start.setHours(0, 0, 0, 0);
+        const timestampStart = Math.floor(start.getTime() / 1000);
+        const response = await service.get_event_type_data('view', {oldest: timestampStart.toString()})
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        // maintain dict of page to count today, count this week
+
+        const data = await response.json().then(data => {
+          let pageCounts: {[key: string]: {today: number, past7: number}} = {};
+          const processedData = data.map((item: any) => {
+            return { timestamp: item.timestamp, page: item.event.split('#')[0], count: item.count};
+          });
+          processedData.forEach((item: any) => {
+            if(!(item.page in pageCounts)){
+              const isToday = new Date(item.timestamp * 1000).toDateString() === new Date().toDateString();
+              pageCounts[item.page] = {today: isToday ? item.count : 0, past7: 0};
+            }
+            else {
+              const isToday = new Date(item.timestamp * 1000).toDateString() === new Date().toDateString();
+              if(isToday){
+                pageCounts[item.page].today += item.count;
+              }
+              pageCounts[item.page].past7 += item.count;
+            }
+        });
+          return pageCounts;
+        });
+        // convert data dict to array for table display
+        const tableArray = Object.keys(data).map((key) => {
+          return {page: key, today: data[key].today, past7: data[key].past7};
+        });
+        setTableData(tableArray);
+
+      } catch (error) {
+        console.error('Error fetching analytics summary data:', error);
+      }
+    }
+    getAnalyticsSummaryData();
+
     async function getAnalytics() {
       try {
         // only get 'view' event type data for today
@@ -44,15 +89,15 @@ function Analytics() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        console.log('Fetched analytics data:', data);
         setAnalyticsData(data.sort((a: any, b: any) => a.timestamp - b.timestamp));
       } catch (error) {
         console.error('Error fetching analytics:', error);
       }
     }
-    
+
     getAnalytics();
   }, []);
+
 
   useEffect(() => {
     // Placeholder for ChartJS initialization code
@@ -81,6 +126,7 @@ function Analytics() {
                   display: true,
                   text: 'Date',
                 },
+                max: new Date().getTime(),
                 time: {
                   unit: 'hour',
                   displayFormats: {
@@ -95,6 +141,9 @@ function Analytics() {
                   maxTicksLimit: 10,
                 },
               },
+              y: {
+                min: 0,
+              }
             }
           }
       });
@@ -115,7 +164,6 @@ function Analytics() {
 
   async function handleTimeframeChange(timeframe: string) {
     // Placeholder for handling timeframe change and updating the chart
-    console.log(`Timeframe changed to: ${timeframe}`);
     // update chart data accordingly
     // use ChartJS methods to update the chart, use sample data for now
     const chartElement = document.getElementById('viewsPerDayChart') as HTMLCanvasElement;
@@ -133,7 +181,6 @@ function Analytics() {
           const data = await todayData.json()
             .then(data => data.map((item: any) => ({ x: new Date(item.timestamp * 1000), y: item.count })).sort((a: any, b: any) => a.x - b.x))
             .then(data => {
-                console.log('Today data:', data);
                 chartInstance.data.datasets[0].data = data;
                 chartInstance.options.scales!.x!.time!.unit = 'hour';
                 chartInstance.options.scales!.x!.min = start;
@@ -149,16 +196,19 @@ function Analytics() {
           let timestampStart = Math.floor(start.getTime() / 1000);
           const weekData = await service.get_event_type_data('view', {oldest: timestampStart.toString()})
           const data = await weekData.json()
-            .then(data => data.map((item: any) => ({ x: new Date(item.timestamp * 1000), y: item.count })).sort((a: any, b: any) => a.x - b.x))
             .then(data => {
-                chartInstance.data.datasets[0].data = data;
-                chartInstance.options.scales!.x!.time!.unit = 'hour';
-                chartInstance.options.scales!.x!.min = start;
-                chartInstance.update();
-                return data;
-              }
-            );
-        }
+              console.log('Raw last seven days data:', data);
+              return data.map((item: any) => ({ x: new Date(item.timestamp * 1000), y: item.count })).sort((a: any, b: any) => a.x - b.x)
+            })
+            .then(data => {
+                  chartInstance.data.datasets[0].data = data;
+                  chartInstance.options.scales!.x!.time!.unit = 'day';
+                  chartInstance.options.scales!.x!.min = start;
+                  chartInstance.update();
+                  return data;
+                }
+              );
+          }
         else if (timeframe === 'month'){
           // Last 30 days logic
           let start = new Date();
@@ -223,18 +273,6 @@ function Analytics() {
       }
     }
   }
-  const tableData = [
-      {page: 'Explore', today: 30, past7: 210},
-      {page: 'Hiking', today: 25, past7: 140},
-      {page: 'Map', today: 25, past7: 200},
-      {page: 'Details - Perrot State Park', today: 23, past7: 122},
-      {page: 'Details - Trempealeau Mountain State Natural Area', today: 15, past7: 80},
-      {page: 'Details - Trempealeau National Wildlife Refugee', today: 12, past7: 90},
-      {page: 'Details - Brady\'s Bluff', today: 10, past7: 70},
-      {page: 'Details - Pine Creek', today: 8, past7: 50},
-      {page: 'Details - Buffalo River State Trail', today: 5, past7: 30},
-      {page: 'Details - Great River State Trail', today: 4, past7: 25},
-    ];
   
   function exportTableData() {
     // Placeholder for exporting table data logic
@@ -270,7 +308,7 @@ function Analytics() {
           </div>
           <canvas id="viewsPerDayChart"></canvas>
         </div>
-        <div>
+        {tableData && <div>
           {/* Table for view count by page */}
           <div className="flex flex--align-center flex--justify-space-between w-75">
             <div className='flex flex--align-center search-bar mt-1'>
@@ -304,7 +342,7 @@ function Analytics() {
             <span>Page {currTablePage} of {Math.ceil(tableData.length / 5)}</span>
             <button className="btn btn--secondary" onClick={() => {if(currTablePage < Math.ceil(tableData.length / 5)) setCurrTablePage(currTablePage + 1)}}>Next</button>
           </div>
-        </div>
+        </div>}
       </div>
     </main>
   )
