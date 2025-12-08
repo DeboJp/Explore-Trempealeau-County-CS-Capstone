@@ -118,14 +118,15 @@ export default function ExploreScreen() {
 
       {suggestions.length > 0 && (
         <View style={{
-          width: '80%',
+          width: '75%',
           backgroundColor: '#fff',
           borderWidth: 1,
           borderColor: '#ccc',
           borderBottomLeftRadius: 12,
           borderBottomRightRadius: 12,
-          marginTop: -8,
-          zIndex: 10
+          marginTop: 40,
+          zIndex: 10,
+          position: 'absolute',
         }}>
           {suggestions.map((s: any, idx: number) => {
             if (s.kind === 'location') {

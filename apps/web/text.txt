@@ -1,1 +1,0 @@
-this will be the web front-end side folder. We can change it later as we like.

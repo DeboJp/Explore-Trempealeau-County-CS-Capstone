@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useRef } from "react";
 import {StyleSheet, View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, 
-  Platform, Modal, TouchableWithoutFeedback, Animated, Dimensions, Keyboard} from "react-native";
+  Platform, Modal, TouchableWithoutFeedback, Animated, Dimensions, Keyboard, ScrollView} from "react-native";
 import MapView, { Marker, Region, Polyline, Polygon } from "react-native-maps";
 import markersData from "../lib/markers.json";
-import places from "../lib/searchLocIndex.json";
+import searchIndex from "../lib/search_index_light.json";
+import * as Location from "expo-location";
 
 // Base URL for your routing backend - ignore this, this is my local wifi IP port forwarding lol
-const API_BASE = "http://10.140.59.162:8000";
+const API_BASE = "http://192.168.1.229:8000";
 
 // Default map camera region
 const INITIAL_REGION = {
@@ -14,15 +15,6 @@ const INITIAL_REGION = {
   longitude: -91.4346,
   latitudeDelta: 0.03,
   longitudeDelta: 0.03,
-};
-
-// Bounding box to restrict map panning
-const delta = 1;
-const TREMP_BOUNDS = {
-  minLat: 43.983886 - delta,
-  maxLat: 44.597192 + delta,
-  minLng: -91.614620 - delta,
-  maxLng: -91.150042 + delta,
 };
 
 // Simple shared types
@@ -36,13 +28,17 @@ type MarkerItem = {
   latitude?: number;
   longitude?: number;
 };
+
 // Entries from searchLocIndex.json
 type Place = {
-  id: number;
-  name: string;
+  label: string;
   lat: number;
   lon: number;
-  tags?: Record<string, string>;
+  type: "marker" | "feature";
+  source?: string;                // e.g. "PublicParks", "Trails"
+  ref_index?: number;
+  ref_indices?: number[];         // merged segments (e.g. BIKE TRAIL)
+  bbox?: [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
 };
 
 //locations:
@@ -53,6 +49,16 @@ const WATERWAY = require("../lib/geojson/Waterway.json");
 const PUBLIC_PARKS = require("../lib/geojson/PublicParks.json");
 const WILDLIFE_AREAS = require("../lib/geojson/WildlifeAreas.json");
 const WATER_TRAIL = require("../lib/geojson/WaterTrail.json");
+
+const SOURCE_SHAPES: Record<string, any> = {
+  PublicParks: PUBLIC_PARKS,
+  WildlifeAreas: WILDLIFE_AREAS,
+  ATVTrails: ATV_TRAILS,
+  SnowmobileTrails: SNOWMOBILE_TRAILS,
+  Trails: TRAILS,
+  WaterTrail: WATER_TRAIL,
+  Waterway: WATERWAY,
+};
 
 // Static options for UI toggles
 const TRANSPORT_MODES = ["Walk", "ATV", "Snowmobile"] as const;
@@ -74,8 +80,14 @@ type StrokeStyle = {
   lineDashPattern?: number[];
 };
 
+type Highlight = {
+  source: string;
+  indices: number[];
+  fieldIndex: number; 
+};
+
 // Load places data from local JSON
-const PLACES: Place[] = places as unknown as Place[];
+const PLACES: Place[] = searchIndex as unknown as Place[];
 
 // Color + opacity tokens
 const PRIMARY_BLUE = "#266AB1";
@@ -96,11 +108,18 @@ export default function MapScreen() {
   const [stops, setStops] = useState<Coordinate[]>([]);
   // Route polyline from OSRM
   const [routeCoords, setRouteCoords] = useState<Coordinate[]>([]);
+  // Store previous view + toggle state for "jump to user" button
+  const [savedRegion, setSavedRegion] = useState<Region | null>(null);
+  const [showingUserView, setShowingUserView] = useState(false);
   // Short summary of the current route
   const [routeInfo, setRouteInfo] = useState<{
     distanceKm: string;
     durationMin: string;
   } | null>(null);
+
+
+  // Highlighted feature on map (from search selection)
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
 
   // Map appearance + high-level mode
   const [mapType, setMapType] =
@@ -145,15 +164,19 @@ export default function MapScreen() {
     };
   }, []);
 
-  // Ensure map region stays within Trempealeau County
-  const clampRegion = (region: Region): Region => {
-    let { latitude, longitude, latitudeDelta, longitudeDelta } = region;
-
-    latitude = Math.min(TREMP_BOUNDS.maxLat, Math.max(TREMP_BOUNDS.minLat, latitude));
-    longitude = Math.min(TREMP_BOUNDS.maxLng, Math.max(TREMP_BOUNDS.minLng, longitude));
-
-    return { latitude, longitude, latitudeDelta, longitudeDelta };
-  };
+    // Ask for foreground location permission so the blue dot can show
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          console.log("Location permission not granted");
+        }
+      } catch (e) {
+        console.log("Error requesting location permission", e);
+      }
+    })();
+  }, []);
 
   // Get stroke style for route polylines
   const getStrokeStyle = (): StrokeStyle => {
@@ -186,6 +209,108 @@ export default function MapScreen() {
     longitude: coord[0],
   });
 
+  // Toggle between current screen view and user's current location
+  const handleToggleUserView = async () => {
+    if (!mapRef.current) return;
+
+    try {
+      if (!showingUserView) {
+        // We are in "normal" view -> save it and jump to user
+        setSavedRegion(mapRegion);
+
+        const loc = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude } = loc.coords;
+
+        mapRef.current.animateToRegion(
+          {
+            latitude,
+            longitude,
+            latitudeDelta: mapRegion.latitudeDelta,
+            longitudeDelta: mapRegion.longitudeDelta,
+          },
+          500
+        );
+
+        setShowingUserView(true);
+      } else {
+        // We are in "user view" -> go back to saved view (if any)
+        if (savedRegion) {
+          mapRef.current.animateToRegion(savedRegion, 500);
+        }
+        setShowingUserView(false);
+      }
+    } catch (e) {
+      console.log("Error toggling user view", e);
+    }
+  };
+
+  // Render highlighted feature(s) on map
+  const renderHighlights = () => {
+    return highlights.flatMap((hl) => {
+      const geo = SOURCE_SHAPES[hl.source];
+      if (!geo?.features) return [];
+
+      return hl.indices.flatMap((idx) => {
+        const f = geo.features[idx];
+        if (!f || !f.geometry) return [];
+
+        const geom = f.geometry;
+
+        // Polygons
+        if (geom.type === "Polygon" || geom.type === "MultiPolygon") {
+          const rings =
+            geom.type === "Polygon"
+              ? [geom.coordinates[0]]
+              : geom.coordinates.map((poly: any) => poly[0]);
+
+          return rings.map((ring: any, rIdx: number) => (
+            <Polygon
+              key={`hl-poly-${hl.source}-${idx}-${rIdx}`}
+              coordinates={ring.map(toLatLng)}
+              strokeColor="#14569A"
+              strokeWidth={4}
+              fillColor="#D9D9D9"
+            />
+          ));
+        }
+
+        // Lines
+        if (geom.type === "LineString" || geom.type === "MultiLineString") {
+          const segments =
+            geom.type === "LineString" ? [geom.coordinates] : geom.coordinates;
+
+          return segments.map((seg: any, sIdx: number) => (
+            <Polyline
+              key={`hl-line-${hl.source}-${idx}-${sIdx}`}
+              coordinates={seg.map(toLatLng)}
+              strokeColor="#14569A"
+              strokeWidth={5}
+            />
+          ));
+        }
+
+        // Points
+        if (geom.type === "Point") {
+          const coord = toLatLng(geom.coordinates);
+          return [
+            <Marker
+              key={`hl-pt-${hl.source}-${idx}`}
+              coordinate={coord}
+              title={
+                f.properties?.NAME ||
+                f.properties?.Label_Proper ||
+                hl.source
+              }
+              pinColor="#14569A"
+            />,
+          ];
+        }
+
+        return [];
+      });
+    });
+  };
+
 
   // Zoom/pan map to show entire route
   const fitRouteOnMap = (coords: Coordinate[]) => {
@@ -196,6 +321,27 @@ export default function MapScreen() {
         top: 80,
         right: 40,
         bottom: 350, // extra space for bottom sheet
+        left: 40,
+      },
+      animated: true,
+    });
+  };
+
+  // Zoom/pan map to show bounding box
+  const fitBoxOnMap = (bbox: [number, number, number, number]) => {
+    if (!mapRef.current) return;
+    const [minLon, minLat, maxLon, maxLat] = bbox;
+
+    const boxCoords: Coordinate[] = [
+      { latitude: minLat, longitude: minLon },
+      { latitude: maxLat, longitude: maxLon },
+    ];
+
+    mapRef.current.fitToCoordinates(boxCoords, {
+      edgePadding: {
+        top: 80,
+        right: 40,
+        bottom: 350,
         left: 40,
       },
       animated: true,
@@ -266,6 +412,7 @@ export default function MapScreen() {
     setTransportMode("Walk");
     setSuggestions([]);
     setActiveFieldIndex(null);
+    setHighlights([]);
   };
 
   // Tap on a marker to use it as start/end in same two-step pattern
@@ -309,7 +456,7 @@ export default function MapScreen() {
 
     // Simple local filter over PLACES
     const matches = PLACES.filter((p) =>
-      p.name.toLowerCase().includes(q)
+      p.label.toLowerCase().includes(q)
     ).slice(0, 20);
 
     setSuggestions(matches);
@@ -319,17 +466,21 @@ export default function MapScreen() {
   const handleSelectSuggestion = (fieldIndex: number, place: Place) => {
     const coord: Coordinate = { latitude: place.lat, longitude: place.lon };
 
-    // Set text in the chosen field
+    // Put the label into the field
     setSearchInputs((prev) => {
       const next = [...prev];
-      next[fieldIndex] = place.name;
+      next[fieldIndex] = place.label;
       return next;
     });
 
-    // Clear suggestion UI
+    // Clear UI state
     setSuggestions([]);
     setActiveFieldIndex(null);
+    setRouteCoords([]);
+    setRouteInfo(null);
+    Keyboard.dismiss();
 
+    // Update stops, but don't fit map here
     setStops((prev) => {
       let next = [...prev];
 
@@ -343,21 +494,67 @@ export default function MapScreen() {
         }
       } else {
         if (next.length === 0) {
-          next = [coord]; 
+          next = [coord];
         } else if (next.length === 1) {
-          next.push(coord); 
+          next.push(coord);
         } else {
-          next[1] = coord; 
+          next[1] = coord;
         }
       }
 
       return next;
     });
 
-    setRouteCoords([]);
-    setRouteInfo(null);
-    Keyboard.dismiss();
+    // Feature → highlight + zoom to bbox
+    if (place.type === "feature" && place.source) {
+      const indices =
+        place.ref_indices && place.ref_indices.length
+          ? place.ref_indices
+          : place.ref_index != null
+          ? [place.ref_index]
+          : [];
+
+      // update highlight for THIS field, keep others (so Start + Dest can both show)
+      setHighlights((prev) => {
+        const others = prev.filter((h) => h.fieldIndex !== fieldIndex);
+        if (!indices.length) return others;
+        return [
+          ...others,
+          { source: place.source as string, indices, fieldIndex },
+        ];
+      });
+
+      if (place.bbox) {
+        fitBoxOnMap(place.bbox);
+      } else if (mapRef.current) {
+        mapRef.current.animateToRegion(
+          {
+            latitude: coord.latitude,
+            longitude: coord.longitude,
+            latitudeDelta: mapRegion.latitudeDelta,
+            longitudeDelta: mapRegion.longitudeDelta,
+          },
+          500
+        );
+      }
+    } else {
+      // Marker (plain point) → remove highlight just for this field
+      setHighlights((prev) => prev.filter((h) => h.fieldIndex !== fieldIndex));
+
+      if (mapRef.current) {
+        mapRef.current.animateToRegion(
+          {
+            latitude: coord.latitude,
+            longitude: coord.longitude,
+            latitudeDelta: mapRegion.latitudeDelta,
+            longitudeDelta: mapRegion.longitudeDelta,
+          },
+          500
+        );
+      }
+    }
   };
+
 
 
   // Insert a new "Stop" field before the Destination
@@ -422,8 +619,11 @@ export default function MapScreen() {
         style={StyleSheet.absoluteFill}
         mapType={mapType}
         region={mapRegion}
-        onRegionChangeComplete={(r) => setMapRegion(clampRegion(r))}
+        onRegionChangeComplete={(r) => setMapRegion(r)}
         onLongPress={onMapLongPress}
+        showsUserLocation={true}
+        followsUserLocation={true? showingUserView : false}   
+        showsMyLocationButton={true}
       >
         {stops.map((p, idx) => (
           <Marker
@@ -610,7 +810,7 @@ export default function MapScreen() {
               />
             );
           })}
-
+        {renderHighlights()}
       </MapView>
 
       <KeyboardAvoidingView
@@ -626,7 +826,22 @@ export default function MapScreen() {
         >
           {/* Top bar over map */}
           <View style={styles.optionsBar}>
-            <TouchableOpacity style={styles.layersButton} onPress={openLayers}>
+            <TouchableOpacity
+              style={[
+                styles.layersButton,
+                showingUserView && styles.layersButtonActive,
+              ]}
+              onPress={handleToggleUserView}
+            >
+              <Text style={styles.layersButtonText}>
+                {showingUserView ? "Back" : "Me"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.layersButton, { marginLeft: 8 }]}
+              onPress={openLayers}
+            >
               <Text style={styles.layersButtonText}>Layers</Text>
             </TouchableOpacity>
 
@@ -722,26 +937,25 @@ export default function MapScreen() {
               )}
             </View>
             {activeFieldIndex !== null && suggestions.length > 0 && (
-              <View style={styles.suggestionsContainer}>
+              <ScrollView
+                style={styles.suggestionsContainer}
+                keyboardShouldPersistTaps="handled"
+              >
                 {suggestions.map((p) => (
                   <TouchableOpacity
-                    key={p.id}
+                    key={`${p.label}-${p.source ?? "marker"}`}
                     style={styles.suggestionRow}
                     onPress={() => handleSelectSuggestion(activeFieldIndex, p)}
                   >
-                    <Text style={styles.suggestionName}>{p.name}</Text>
-                    {!!p.tags && (
-                      <Text style={styles.suggestionMeta}>
-                        {p.tags.amenity ||
-                          p.tags.natural ||
-                          p.tags.tourism ||
-                          ""}
-                      </Text>
-                    )}
+                    <Text style={styles.suggestionName}>{p.label}</Text>
+                    <Text style={styles.suggestionMeta}>
+                      {p.type === "marker" ? "Point of interest" : p.source}
+                    </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
             )}
+
             <View style={styles.searchFooterRow}>
               <TouchableOpacity
                 style={styles.startButton}
@@ -857,6 +1071,9 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY_BLUE,
     justifyContent: "center",
     alignItems: "center",
+  },
+  layersButtonActive: {
+    backgroundColor: LIGHT_BLUE,
   },
   layersButtonText: {
     color: "#FFFFFF",
@@ -1108,7 +1325,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: LIGHT_BLUE,
-    overflow: "hidden",
   },
   suggestionRow: {
     paddingHorizontal: 11,

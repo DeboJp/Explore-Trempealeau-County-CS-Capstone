@@ -30,6 +30,7 @@ const styles = StyleSheet.create({
     borderColor: '#9E9E9E',
     borderRadius: 16,
     overflow: 'hidden',
+    zIndex: 10,
   },
   input: {
     padding: 12,
