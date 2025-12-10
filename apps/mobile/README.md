@@ -1,44 +1,19 @@
-# Mobile App
-
-To run this app simply run these lines in your terminal/command prompt:
+# React Native + Expo Go Cross-Platform Mobile Application
+### Prerequisites
+In order to start this project on your local machine, you need the following CLI tools and software to run the commands detailed below:
+* `npm`, `nvm`
+* XCode, XCode simulator, XCode CLI
+    * For iOS emulation, please consider installing the latest XCode version for your machine. Standard installation should cover all of the necessary steps needed to successfully simulate the app on your machine.
+* Android Studio
+    * For Android emulation, please consider installing the latest Android Studio version for your machine.
+## Local Development
+To start the application, run the following commands. If you've already installed node v24.11.1 (current LTS), the first line can be ignored. Ensure you're in the current directory when running these commands.
 ```
-npm install
-npm start
+nvm install 24.11.1
+nvm use 24.11.1
+rm -rf node_modules/
+rm package-lock.json
+npm i
+npx expo start -c
 ```
-
-There should be a QR code that shows up in your terminal, which you can scan to take you to the app (you will need to have Expo Go installed on your phone to do this).
-
-This is the folder structure and what each file does:
-
-mobile/
-├── assets/ - Icons used inside the app.
-├── components/ - Folder that contains various components of the app.
-    ├── BottomUpModal.tsx - Makes a modal for search bar results.
-    ├── CategoryTile.tsx - Tile to show list of categories to filter by.
-    ├── LocationTile.tsx - Tile to show list of locations, used in ExploreScreen.
-    ├── SavedCards.tsx - Saved cards functionality.
-    ├── SavedFolder.tsx - Makes folder for every saved location.
-    ├── SearchBar.tsx - Search bar component, used to search through the app.
-    ├── TileTag.tsx - Tags that can be attached to group locations together.
-├── lib/
-    ├── geojson/ - Folder that contains data on various trails, all saved in JSON format.
-    ├── markers.json - Example markers used for testing.
-    ├── savedStore.js - Script to save locations in the app.
-    ├── searchLocIndex.json - Store of location coordinates.
-├── pages/ - Folder with the various pages included in the app.
-    ├── DetailScreen.tsx - Shows the basic details of a location.
-    ├── ExploreScreen.tsx - Default landing page, shows a list of locations the user can explore.
-    ├── MapScreen.tsx - Shows an interactible map of the Trempealeau area.
-    ├── ProfileScreen.tsx
-    ├── ResultsScreen.tsx - Shows all the results of a search.
-    ├── SavedScreen.tsx - Shows all trails saved by a user.
-├── .gitignore - List of files not pushed to git when updating the app.
-├── app.json - JSON file that stores properties of the app.
-├── App.tsx - Main app file, stores the main template and routing of the app.
-├── package-lock.json - List of packages for the app.
-├── package.json - List of dependencies for the app.
-└── README.md - The file you are in right now!
-
-Every folder and file not included here is something generated when running/installing the dependencies for this app.
-
-For next steps, go to the master README at the very top of the folder hierarchy.
+From there, given a successful setup, the Expo Go server should start, allowing you to either connect to the project using a mobile device via the QR code or emulate it on your machine through iOS or Android. 
