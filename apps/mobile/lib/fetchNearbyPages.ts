@@ -13,6 +13,7 @@ export type PageData = {
   city?: string;
   pageContent?: string;
   gisId?: string;
+  published?: boolean;
   // ...any other fields your API returns
 };
 

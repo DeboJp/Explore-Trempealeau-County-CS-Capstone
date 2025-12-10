@@ -73,12 +73,13 @@ async def search_pages(
     q: Optional[str] = Query(None, description="Search term"),
     city: Optional[str] = Query(None, description="City to filter by"),
     published: Optional[bool] = Query(None, description="Published status to filter by"),
+    tag: Optional[str] = Query(None, description="Tag to filter by"),
     type: Optional[str] = Query(None, description="Type to filter by"),
     limit: int = Query(50, ge=1, le=100),
     repo: PageRepository = Depends(get_repository)
 ):
     """Search pages by title or description"""
-    pages = repo.search_pages(search_term=q, city=city, type=type, published=published, limit=limit)
+    pages = repo.search_pages(search_term=q, city=city, type=type, published=published, tag=tag, limit=limit)
     return {
         "pages": [PageResponse(**page) for page in pages]
     }
@@ -91,9 +92,29 @@ async def search_pages(
 async def get_page(
     page_id: str = Path(..., description="Page ID"),
     title: str = Path(..., description="Page Title"),
-    repo: PageRepository = Depends(get_repository)
+    repo: PageRepository = Depends(get_repository),
+    token_payload: Dict = Depends(verify_access_token)
 ):
     """Get a specific page by ID"""
+    page = repo.get_page(page_id, title, authorized=token_payload)
+    if not page:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Page not found"
+        )
+    return PageResponse(**page)
+
+@router.get(
+    "/published/{page_id}/{title}",
+    response_model=PageResponse,
+    summary="Get page by ID"
+)
+async def get_published_page (
+    page_id: str = Path(..., description="Page ID"),
+    title: str = Path(..., description="Page Title"),
+    repo: PageRepository = Depends(get_repository),
+):
+    """Get a specific published page by ID"""
     page = repo.get_page(page_id, title)
     if not page:
         raise HTTPException(

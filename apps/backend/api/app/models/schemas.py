@@ -14,6 +14,7 @@ class PageCreate(PageBase):
     title: str
     city: Optional[str] = None
     type: Optional[str] = None
+    gisId: Optional[str] = None
     pageContent: Optional[str] = None
 
 class PageUpdate(BaseModel):
@@ -22,6 +23,8 @@ class PageUpdate(BaseModel):
     title: str = Field(None, min_length=1, max_length=200)
     city: Optional[str] = None
     type: Optional[str] = None
+    gisId: Optional[str] = None
+    tags: Optional[str] = None
     pageContent: Optional[str] = None
     published: Optional[bool] = None
     published_at: Optional[datetime] = None
@@ -32,6 +35,7 @@ class PageResponse(PageBase):
     title: str
     city: Optional[str] = None
     type: Optional[str] = None
+    tags: Optional[str] = None
     image: Optional[str] = None
     pageContent: Optional[str] = None
     updated_at: Optional[datetime] = None
