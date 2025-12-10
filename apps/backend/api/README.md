@@ -1,5 +1,9 @@
 ## Local Development
 
+### Prerequisites
+In order for the API to function without `boto` throwing an error, it's necessary to first configure AWS CLI. This can be done using the `aws configure` command with the necessary access token, region, and secret key. Further, you'll also need a `.env` file to configure necessary settings to retrieve and submit data. For help with this step, please reach out to a team member for support.
+
+## Start-up
 To start the FastAPI app, run the following lines in your terminal. This will create a virtualenv *venv*, activate it, download all necessary libraries, and start up FastAPI.
 
 ```
