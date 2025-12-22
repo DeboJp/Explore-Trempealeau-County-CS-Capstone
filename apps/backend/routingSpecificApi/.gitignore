@@ -1,0 +1,13 @@
+# --- Python envs (FastAPI, etc.) ---
+.venv/
+venv/
+env/
+
+# --- Python cache files (anywhere under routing-backend/) ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# --- OS / editor noise ---
+.DS_Store
