@@ -2,3 +2,4 @@ This will be the backend folder. We can change it later as we like.
 - api folder contains all AWS relating setup i.e. dynamodb and fast api gateways for it.
 - routingSpecificApi folder contains a local implementation of geting pathfinding for the maps tab on mobile app.
 both folders have readme's on how to set it up.
+Architecture images visualize end goal implementation of current setup.

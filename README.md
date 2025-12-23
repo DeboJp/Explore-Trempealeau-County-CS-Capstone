@@ -8,8 +8,9 @@ This is the project directory for our UW-Madison CS 620 Capstone project in coll
 
 This repository contains 3 separate apps under the apps folder. Each app covers a different functionality, those being:
 
-- [*backend/*](https://github.com/DeboJp/Explore-Trempealeau-County-CS-Capstone/tree/main/apps/backend/): Data processing, user authentication, and various endpoints for the flow of data from and to AWS-based platforms.
+- [*backend/*](https://github.com/DeboJp/Explore-Trempealeau-County-CS-Capstone/tree/main/apps/backend/): Data processing, user authentication, and various endpoints for the flow of data from and to AWS-based and local platforms.
     - [*backend/api*](https://github.com/DeboJp/Explore-Trempealeau-County-CS-Capstone/tree/main/apps/backend/api): FastAPI app with README detailing setup and execution.
+    - [*backend/routingSpecificapi*](https://github.com/DeboJp/Explore-Trempealeau-County-CS-Capstone/tree/main/apps/backend/routingSpecificApi): FastAPI app + OSRM routing files with README detailing setup and execution.
 
 - [*mobile/*](https://github.com/DeboJp/Explore-Trempealeau-County-CS-Capstone/tree/main/apps/mobile/): User-facing, cross-platform mobile application built with Expo Go, React Native, and TypeScript.
 
